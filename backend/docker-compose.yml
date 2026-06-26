@@ -28,12 +28,14 @@ services:
     image: mysql:8.0
     container_name: laundry-mysql
     ports:
-      - "3307:3306"
+      - "${MYSQL_PORT:-3307}:3306"
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: laundry
-      MYSQL_USER: laundry
-      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-laundry}
+      MYSQL_USER: ${MYSQL_USER:-laundry}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set}
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
