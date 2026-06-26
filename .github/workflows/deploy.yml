@@ -21,7 +21,7 @@ jobs:
           command_timeout: 15m
           script: |
             set -e
-            cd /home/${{ secrets.SERVER_USER }}/laundry/backend
+            cd /home/enpii/apps/laundryaja
 
             git pull origin main
 
