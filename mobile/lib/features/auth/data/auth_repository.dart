@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/storage/secure_storage.dart';
 import 'user_model.dart';
 
@@ -12,9 +13,22 @@ class AuthRepository {
       'password': password,
     });
 
-    final data = res.data as Map<String, dynamic>;
-    final token = (data['data'] as Map)['access_token'] as String;
-    final userJson = (data['data'] as Map)['user'] as Map<String, dynamic>;
+    final data = res.data;
+    if (data is! Map) {
+      throw ApiException('Unexpected response from server', statusCode: res.statusCode);
+    }
+    final payload = data['data'];
+    if (payload is! Map) {
+      throw ApiException(
+        data['message']?.toString() ?? 'Email atau password salah',
+        statusCode: res.statusCode,
+      );
+    }
+    final token = payload['access_token'] as String?;
+    final userJson = payload['user'] as Map<String, dynamic>?;
+    if (token == null || userJson == null) {
+      throw ApiException('Malformed login response', statusCode: res.statusCode);
+    }
     final user = UserModel.fromJson(userJson);
 
     await SecureStorage.instance.saveToken(token);
@@ -23,7 +37,17 @@ class AuthRepository {
 
   Future<UserModel> me() async {
     final res = await _api.dio.get('/auth/me');
-    final user = ((res.data as Map)['data'] as Map)['user'] as Map<String, dynamic>;
+    final data = res.data;
+    if (data is! Map) {
+      throw ApiException('Unexpected response from server', statusCode: res.statusCode);
+    }
+    final user = (data['data'] as Map?)?['user'] as Map<String, dynamic>?;
+    if (user == null) {
+      throw ApiException(
+        data['message']?.toString() ?? 'Failed to fetch user',
+        statusCode: res.statusCode,
+      );
+    }
     return UserModel.fromJson(user);
   }
 
@@ -34,7 +58,17 @@ class AuthRepository {
       'name': name,
       'email': email,
     });
-    final user = (res.data as Map)['data'] as Map<String, dynamic>;
+    final data = res.data;
+    if (data is! Map) {
+      throw ApiException('Unexpected response from server', statusCode: res.statusCode);
+    }
+    final user = data['data'] as Map<String, dynamic>?;
+    if (user == null) {
+      throw ApiException(
+        data['message']?.toString() ?? 'Failed to update profile',
+        statusCode: res.statusCode,
+      );
+    }
     return UserModel.fromJson(user);
   }
 
