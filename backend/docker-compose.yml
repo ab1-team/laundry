@@ -11,6 +11,7 @@ services:
       - redis
     networks:
       - laundry-net
+      - web-network
 
   nginx:
     build:
@@ -23,6 +24,7 @@ services:
       - app
     networks:
       - laundry-net
+      - web-network
 
   mysql:
     image: mysql:8.0
@@ -38,6 +40,7 @@ services:
       - mysql-data:/var/lib/mysql
     networks:
       - laundry-net
+      - web-network
 
   redis:
     image: redis:alpine
@@ -46,6 +49,7 @@ services:
       - "6380:6379"
     networks:
       - laundry-net
+      - web-network
 
 volumes:
   mysql-data:
