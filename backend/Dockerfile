@@ -31,6 +31,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
+# Override php-fpm pool to listen on 0.0.0.0 so nginx (other container) can reach
+COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
+
 # Install PHP dependencies (no dev dependencies for production)
 COPY --chown=www-data:www-data composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
