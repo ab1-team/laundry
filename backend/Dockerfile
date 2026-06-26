@@ -31,6 +31,16 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
+# Install PHP dependencies (no dev dependencies for production)
+COPY --chown=www-data:www-data composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+
+# Copy application source
+COPY --chown=www-data:www-data . .
+
+# Generate optimized autoloader
+RUN composer dump-autoload --optimize --no-dev
+
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html
 
