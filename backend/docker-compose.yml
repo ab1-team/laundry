@@ -56,3 +56,5 @@ volumes:
 networks:
   laundry-net:
     driver: bridge
+  web-network:
+    external: true
