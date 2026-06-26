@@ -1,0 +1,186 @@
+<!DOCTYPE html><html lang="id"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>LaundryKu - Masuk</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-container": "#332100",
+                      "surface-container": "#f0edf0",
+                      "outline-variant": "#c6c6ce",
+                      "secondary-fixed": "#c2e8ff",
+                      "on-error": "#ffffff",
+                      "inverse-surface": "#303033",
+                      "surface-bright": "#fbf8fb",
+                      "on-surface": "#1b1b1e",
+                      "inverse-on-surface": "#f3f0f3",
+                      "surface-container-highest": "#e4e2e5",
+                      "surface": "#fbf8fb",
+                      "on-tertiary-fixed-variant": "#59431c",
+                      "on-primary-fixed-variant": "#3d4665",
+                      "secondary": "#006688",
+                      "primary-container": "#1a2340",
+                      "tertiary-fixed": "#ffdeab",
+                      "on-background": "#1b1b1e",
+                      "on-secondary": "#ffffff",
+                      "surface-dim": "#dcd9dc",
+                      "on-primary-container": "#828aad",
+                      "surface-container-lowest": "#ffffff",
+                      "outline": "#76767e",
+                      "on-secondary-fixed": "#001e2b",
+                      "on-tertiary": "#ffffff",
+                      "on-secondary-fixed-variant": "#004d67",
+                      "secondary-container": "#58cafe",
+                      "surface-container-high": "#eae7ea",
+                      "primary-fixed": "#dbe1ff",
+                      "error-container": "#ffdad6",
+                      "tertiary-fixed-dim": "#e2c290",
+                      "on-error-container": "#93000a",
+                      "surface-variant": "#e4e2e5",
+                      "tertiary": "#180d00",
+                      "error": "#ba1a1a",
+                      "on-tertiary-fixed": "#281900",
+                      "background": "#fbf8fb",
+                      "on-secondary-container": "#005370",
+                      "primary-fixed-dim": "#bdc5ea",
+                      "surface-container-low": "#f6f3f6",
+                      "on-primary-fixed": "#111a37",
+                      "primary": "#040d2a",
+                      "on-primary": "#ffffff",
+                      "inverse-primary": "#bdc5ea",
+                      "on-tertiary-container": "#a4875a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-sm": "8px",
+                      "container-padding": "20px",
+                      "gutter": "16px",
+                      "stack-md": "16px",
+                      "stack-lg": "24px",
+                      "base": "4px"
+              },
+              "fontFamily": {
+                      "label-lg": ["DM Sans"],
+                      "title-lg": ["DM Sans"],
+                      "headline-md": ["DM Sans"],
+                      "body-lg": ["DM Sans"],
+                      "body-md": ["DM Sans"],
+                      "label-sm": ["DM Sans"],
+                      "display-lg": ["DM Sans"]
+              },
+              "fontSize": {
+                      "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "600"}],
+                      "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "headline-md": ["22px", {"lineHeight": "28px", "fontWeight": "700"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                      "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background-color: #F5F7FA;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .login-card-shadow {
+            box-shadow: 0 4px 16px 0 rgba(4, 13, 42, 0.12);
+        }
+        .btn-active:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen bg-surface">
+<!-- Top Branding Section -->
+<header class="flex flex-col items-center justify-center pt-20 pb-12 px-container-padding">
+<div class="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center mb-4 shadow-lg overflow-hidden">
+<span class="material-symbols-outlined text-on-primary text-[40px]" data-icon="local_laundry_service">local_laundry_service</span>
+</div>
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight">LaundryKu</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">Sistem Manajemen Operasional Laundry</p>
+</header>
+<!-- Login Form Container -->
+<main class="flex-grow px-container-padding pb-stack-lg">
+<div class="bg-surface-container-lowest rounded-[32px] p-container-padding login-card-shadow max-w-md mx-auto">
+<form action="#" class="space-y-stack-md" onsubmit="event.preventDefault();">
+<!-- Field: Kode Toko -->
+<div class="space-y-stack-sm">
+<label class="block font-label-lg text-label-lg text-on-surface ml-1" for="store_code">Kode Toko</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline" data-icon="storefront">storefront</span>
+<input class="w-full h-[56px] pl-12 pr-4 bg-white border border-outline-variant rounded-[20px] font-body-md text-body-md focus:border-secondary focus:ring-2 focus:ring-secondary-container transition-all outline-none" id="store_code" name="store_code" placeholder="Contoh: TOKO-001" type="text">
+</div>
+</div>
+<!-- Field: Email -->
+<div class="space-y-stack-sm">
+<label class="block font-label-lg text-label-lg text-on-surface ml-1" for="email">Email</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline" data-icon="mail">mail</span>
+<input class="w-full h-[56px] pl-12 pr-4 bg-white border border-outline-variant rounded-[20px] font-body-md text-body-md focus:border-secondary focus:ring-2 focus:ring-secondary-container transition-all outline-none" id="email" name="email" placeholder="nama@email.com" type="email">
+</div>
+</div>
+<!-- Field: Kata Sandi -->
+<div class="space-y-stack-sm">
+<label class="block font-label-lg text-label-lg text-on-surface ml-1" for="password">Kata Sandi</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline" data-icon="lock">lock</span>
+<input class="w-full h-[56px] pl-12 pr-12 bg-white border border-outline-variant rounded-[20px] font-body-md text-body-md focus:border-secondary focus:ring-2 focus:ring-secondary-container transition-all outline-none" id="password" name="password" placeholder="••••••••" type="password">
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface-variant transition-colors" onclick="togglePassword()" type="button">
+<span class="material-symbols-outlined" data-icon="visibility" id="pw-icon">visibility</span>
+</button>
+</div>
+</div>
+<div class="flex justify-end pt-1">
+<a class="font-label-lg text-label-lg text-secondary hover:underline" href="#">Lupa Kata Sandi?</a>
+</div>
+<!-- Submit Button -->
+<button class="w-full h-[56px] bg-primary text-on-primary font-title-lg text-title-lg rounded-full mt-stack-lg flex items-center justify-center gap-2 btn-active transition-all duration-200" type="submit">
+                    Masuk
+                    <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</form>
+</div>
+</main>
+<!-- Footer Information -->
+<footer class="py-stack-lg px-container-padding text-center">
+<p class="font-label-sm text-label-sm text-outline">
+            © 2024 LaundryKu. Seluruh Hak Cipta Dilindungi.
+        </p>
+<div class="mt-stack-sm flex justify-center gap-stack-lg">
+<a class="font-label-sm text-label-sm text-secondary" href="#">Bantuan</a>
+<a class="font-label-sm text-label-sm text-secondary" href="#">Ketentuan Layanan</a>
+</div>
+</footer>
+<script>
+        function togglePassword() {
+            const pwInput = document.getElementById('password');
+            const pwIcon = document.getElementById('pw-icon');
+            if (pwInput.type === 'password') {
+                pwInput.type = 'text';
+                pwIcon.textContent = 'visibility_off';
+            } else {
+                pwInput.type = 'password';
+                pwIcon.textContent = 'visibility';
+            }
+        }
+    </script>
+</body></html>

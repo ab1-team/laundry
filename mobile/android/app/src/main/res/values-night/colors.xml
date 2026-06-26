@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme — surface dark token. Konsisten dengan sistemUiOverlayStyle
+         di main.dart (Color(0xFF15171C)) supaya tidak ada warna inkonsisten
+         saat app boot di dark mode. -->
+    <color name="launch_background">#15171C</color>
+</resources>

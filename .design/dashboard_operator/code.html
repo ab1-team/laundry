@@ -1,0 +1,309 @@
+<!DOCTYPE html><html lang="id"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>LaundryKu Dashboard - Operator View</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-container": "#332100",
+                    "surface-container": "#f0edf0",
+                    "outline-variant": "#c6c6ce",
+                    "secondary-fixed": "#c2e8ff",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#303033",
+                    "surface-bright": "#fbf8fb",
+                    "on-surface-variant": "#45464d",
+                    "surface-tint": "#545d7d",
+                    "secondary-fixed-dim": "#75d1ff",
+                    "on-surface": "#1b1b1e",
+                    "inverse-on-surface": "#f3f0f3",
+                    "surface-container-highest": "#e4e2e5",
+                    "surface": "#fbf8fb",
+                    "on-tertiary-fixed-variant": "#59431c",
+                    "on-primary-fixed-variant": "#3d4665",
+                    "secondary": "#006688",
+                    "primary-container": "#1a2340",
+                    "tertiary-fixed": "#ffdeab",
+                    "on-background": "#1b1b1e",
+                    "on-secondary": "#ffffff",
+                    "surface-dim": "#dcd9dc",
+                    "on-primary-container": "#828aad",
+                    "surface-container-lowest": "#ffffff",
+                    "outline": "#76767e",
+                    "on-secondary-fixed": "#001e2b",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed-variant": "#004d67",
+                    "secondary-container": "#58cafe",
+                    "surface-container-high": "#eae7ea",
+                    "primary-fixed": "#dbe1ff",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#e2c290",
+                    "on-error-container": "#93000a",
+                    "surface-variant": "#e4e2e5",
+                    "tertiary": "#180d00",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed": "#281900",
+                    "background": "#fbf8fb",
+                    "on-secondary-container": "#005370",
+                    "primary-fixed-dim": "#bdc5ea",
+                    "surface-container-low": "#f6f3f6",
+                    "on-primary-fixed": "#111a37",
+                    "primary": "#040d2a",
+                    "on-primary": "#ffffff",
+                    "inverse-primary": "#bdc5ea",
+                    "on-tertiary-container": "#a4875a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-sm": "8px",
+                    "container-padding": "20px",
+                    "gutter": "16px",
+                    "stack-md": "16px",
+                    "stack-lg": "24px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "label-lg": ["DM Sans"],
+                    "title-lg": ["DM Sans"],
+                    "headline-md": ["DM Sans"],
+                    "body-lg": ["DM Sans"],
+                    "body-md": ["DM Sans"],
+                    "label-sm": ["DM Sans"],
+                    "display-lg": ["DM Sans"]
+            },
+            "fontSize": {
+                    "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "600"}],
+                    "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-md": ["22px", {"lineHeight": "28px", "fontWeight": "700"}],
+                    "headline-md-mobile": ["20px", {"lineHeight": "26px", "fontWeight": "700"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'DM Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .soft-card-shadow {
+            box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.12);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-container-highest shadow-sm dark:shadow-none sticky top-0 z-50 flex items-center justify-between px-container-padding py-stack-md w-full">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-primary-fixed flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="A professional minimalist logo for a laundry business featuring a stylized water droplet and a circular laundry machine portal. The color scheme uses deep navy and sky blue on a clean white background, reflecting a reliable and modern service identity. The lighting is soft and even, highlighting the clean and efficient brand personality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEUverzUbCU3nsWGSmfGeMgSid0R38ZyERrPitDRSTwHX73qqCYA04c11MFa5Y1kwokcXnJLnkbWTu8DduhJCuT47Vu2ccJYAGX7VxWiia0L-QjkCKq4uytot4TiN36IJtXOFD1rtlpe6bqVTTe-X4C-x4fy7HURKvHW_aSbKJ5jPrzsk05FCANJXeO6FrGVaZ8LC-SVPHqoA_SVYLVeXc9---YIz6_ty_PZP7OEt_GsqgDCx1B6ueVVWVsKRM6cV59CglP34LZemG">
+</div>
+<h1 class="font-headline-md-mobile text-headline-md-mobile font-bold text-primary dark:text-primary-fixed-dim">LaundryKu</h1>
+</div>
+<button class="hover:bg-surface-container-high transition-colors p-2 rounded-full active:scale-95 duration-100">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed">settings</span>
+</button>
+</header>
+<main class="px-container-padding pt-stack-lg">
+<!-- Welcome Message -->
+<section class="mb-stack-lg">
+<p class="font-label-lg text-label-lg text-on-surface-variant">Halo, Operator</p>
+<h2 class="font-title-lg text-title-lg text-on-surface">Overview Hari Ini</h2>
+</section>
+<!-- Summary Cards - Bento Style -->
+<section class="grid grid-cols-2 gap-gutter mb-stack-lg">
+<div class="col-span-2 bg-primary-container text-on-primary-fixed p-5 rounded-[28px] soft-card-shadow flex flex-col justify-between h-32 relative overflow-hidden" style="transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1);">
+<div class="relative z-10">
+<p class="font-label-lg text-label-lg text-on-primary">Total Order Aktif</p>
+<h3 class="font-display-lg text-display-lg mt-1 text-on-primary">42</h3>
+</div>
+<div class="absolute right-[-10px] bottom-[-10px] opacity-10"><span class="material-symbols-outlined text-[80px] text-on-primary opacity-20" style="font-variation-settings: &quot;FILL&quot; 1;">local_laundry_service</span></div>
+<div class="bg-secondary-fixed text-on-secondary-fixed px-3 py-1 rounded-full w-fit font-label-sm text-label-sm relative z-10 font-bold">+5 dari kemarin</div>
+</div>
+<div class="bg-surface-container-highest p-5 rounded-[28px] flex flex-col justify-between h-32" style="transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);">
+<p class="font-label-lg text-label-lg text-on-surface-variant">Menunggu Diambil</p>
+<div class="flex items-baseline gap-2">
+<h3 class="font-headline-md text-headline-md text-secondary">12</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Paket</span>
+</div>
+</div>
+<div class="bg-error-container p-5 rounded-[28px] flex flex-col justify-between h-32" style="transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1);">
+<p class="font-label-lg text-label-lg text-on-error-container">Piutang</p>
+<div class="flex flex-col">
+<h3 class="font-headline-md text-headline-md text-on-error-container">Rp 2.4jt</h3>
+<span class="font-label-sm text-label-sm text-on-error-container opacity-70">8 Pelanggan</span>
+</div>
+</div>
+</section>
+<!-- Quick Actions -->
+<section class="mb-stack-lg">
+<h3 class="font-label-lg text-label-lg text-on-surface-variant mb-stack-sm px-1">Aksi Cepat</h3>
+<div class="flex gap-stack-sm overflow-x-auto pb-2 scrollbar-hide">
+<button class="flex-shrink-0 bg-secondary-container text-on-secondary-container px-6 py-3 rounded-full font-label-lg text-label-lg flex items-center gap-2 active:scale-95 duration-100 transition-transform">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                    + Buat Order
+                </button>
+<button class="flex-shrink-0 bg-surface-container-high text-on-surface px-6 py-3 rounded-full font-label-lg text-label-lg flex items-center gap-2 active:scale-95 duration-100 transition-transform">
+<span class="material-symbols-outlined text-[20px]">receipt_long</span>
+                    Daftar Order
+                </button>
+<button class="flex-shrink-0 bg-surface-container-high text-on-surface px-6 py-3 rounded-full font-label-lg text-label-lg flex items-center gap-2 active:scale-95 duration-100 transition-transform">
+<span class="material-symbols-outlined text-[20px]">person</span>
+                    Customer
+                </button>
+</div>
+</section>
+<!-- Recent Orders List -->
+<section class="mb-8">
+<div class="flex items-center justify-between mb-stack-sm px-1">
+<h3 class="font-label-lg text-label-lg text-on-surface-variant">Order Terbaru</h3>
+<button class="text-secondary font-label-lg text-label-lg">Lihat Semua</button>
+</div>
+<div class="space-y-stack-md">
+<!-- Order Card 1 -->
+<div class="bg-surface-container-lowest p-5 rounded-[32px] soft-card-shadow flex items-center justify-between">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant">#INV-9821</span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Tadi</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Budi Santoso</h4>
+<p class="font-body-md text-body-md text-on-surface-variant">Laundry Kiloan • 5.0 kg</p>
+</div>
+<div class="bg-secondary-container/15 text-secondary px-3 py-1.5 rounded-full font-label-sm text-label-sm">
+                        Proses
+                    </div>
+</div>
+<!-- Order Card 2 -->
+<div class="bg-surface-container-lowest p-5 rounded-[32px] soft-card-shadow flex items-center justify-between">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant">#INV-9820</span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">2 jam lalu</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Siti Aminah</h4>
+<p class="font-body-md text-body-md text-on-surface-variant">Cuci Selimut • 2 Pcs</p>
+</div>
+<div class="bg-[#FFC107]/15 text-[#856404] px-3 py-1.5 rounded-full font-label-sm text-label-sm">
+                        Antrean
+                    </div>
+</div>
+<!-- Order Card 3 -->
+<div class="bg-surface-container-lowest p-5 rounded-[32px] soft-card-shadow flex items-center justify-between">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant">#INV-9819</span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">4 jam lalu</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Andi Wijaya</h4>
+<p class="font-body-md text-body-md text-on-surface-variant">Dry Clean Jas • 1 Pcs</p>
+</div>
+<div class="bg-[#4CAF50]/15 text-[#1B5E20] px-3 py-1.5 rounded-full font-label-sm text-label-sm">
+                        Selesai
+                    </div>
+</div>
+<!-- Order Card 4 -->
+<div class="bg-surface-container-lowest p-5 rounded-[32px] soft-card-shadow flex items-center justify-between">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant">#INV-9818</span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Kemarin</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Maya Putri</h4>
+<p class="font-body-md text-body-md text-on-surface-variant">Laundry Kiloan • 3.5 kg</p>
+</div>
+<div class="bg-[#90A4AE]/15 text-[#37474F] px-3 py-1.5 rounded-full font-label-sm text-label-sm">
+                        Diambil
+                    </div>
+</div>
+<!-- Order Card 5 -->
+<div class="bg-surface-container-lowest p-5 rounded-[32px] soft-card-shadow flex items-center justify-between">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant">#INV-9817</span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Kemarin</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Deni Setiawan</h4>
+<p class="font-body-md text-body-md text-on-surface-variant">Cuci Karpet • 1 Pcs</p>
+</div>
+<div class="bg-secondary-container/15 text-secondary px-3 py-1.5 rounded-full font-label-sm text-label-sm">
+                        Proses
+                    </div>
+</div>
+</div>
+</section>
+</main>
+<!-- FAB for New Order (Quick Contextual) -->
+<button class="fixed bottom-28 right-6 w-16 h-16 rounded-full bg-secondary-container text-on-secondary-container shadow-[0_8px_20px_0_rgba(88,202,254,0.3)] flex items-center justify-center active:scale-90 transition-transform duration-200 z-[60]">
+<span class="material-symbols-outlined text-[32px]" style="font-variation-settings: 'FILL' 1;">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-3 bg-surface dark:bg-surface-container shadow-[0_-4px_16px_0_rgba(0,0,0,0.12)] rounded-t-[28px] z-50">
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1.5 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-sm text-label-sm mt-0.5">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest rounded-full px-4 py-1.5 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-label-sm text-label-sm mt-0.5">Order</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest rounded-full px-4 py-1.5 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm mt-0.5">Customer</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest rounded-full px-4 py-1.5 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">assessment</span>
+<span class="font-label-sm text-label-sm mt-0.5">Laporan</span>
+</a>
+</nav>
+<script>
+        // Micro-interactions for summary cards
+        document.querySelectorAll('.rounded-\\[28px\\]').forEach(card => {
+            card.addEventListener('mousedown', () => card.style.transform = 'scale(0.98)');
+            card.addEventListener('mouseup', () => card.style.transform = 'scale(1)');
+            card.addEventListener('mouseleave', () => card.style.transform = 'scale(1)');
+            card.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+        });
+
+        // Add active state dots logic as per brand identity
+        const activeNav = document.querySelector('nav a.bg-secondary-container');
+        if (activeNav) {
+            const dot = document.createElement('div');
+            dot.className = 'w-1 h-1 bg-secondary rounded-full mt-0.5';
+            // Note: The active container already provides sufficient focus, adding a small subtle indicator
+        }
+    </script>
+
+
+</body></html>

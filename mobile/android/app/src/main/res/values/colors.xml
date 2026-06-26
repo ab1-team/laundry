@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light theme — surface light token dari AppColors.background.
+         Dipakai untuk splash background supaya konsisten dengan Flutter. -->
+    <color name="launch_background">#F5F7FA</color>
+</resources>

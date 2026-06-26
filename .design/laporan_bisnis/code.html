@@ -1,0 +1,309 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>LaundryKu - Laporan Owner</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-container": "#332100",
+                    "surface-container": "#f0edf0",
+                    "outline-variant": "#c6c6ce",
+                    "secondary-fixed": "#c2e8ff",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#303033",
+                    "surface-bright": "#fbf8fb",
+                    "on-surface-variant": "#45464d",
+                    "surface-tint": "#545d7d",
+                    "secondary-fixed-dim": "#75d1ff",
+                    "on-surface": "#1b1b1e",
+                    "inverse-on-surface": "#f3f0f3",
+                    "surface-container-highest": "#e4e2e5",
+                    "surface": "#fbf8fb",
+                    "on-tertiary-fixed-variant": "#59431c",
+                    "on-primary-fixed-variant": "#3d4665",
+                    "secondary": "#006688",
+                    "primary-container": "#1a2340",
+                    "tertiary-fixed": "#ffdeab",
+                    "on-background": "#1b1b1e",
+                    "on-secondary": "#ffffff",
+                    "surface-dim": "#dcd9dc",
+                    "on-primary-container": "#828aad",
+                    "surface-container-lowest": "#ffffff",
+                    "outline": "#76767e",
+                    "on-secondary-fixed": "#001e2b",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed-variant": "#004d67",
+                    "secondary-container": "#58face",
+                    "surface-container-high": "#eae7ea",
+                    "primary-fixed": "#dbe1ff",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed-dim": "#e2c290",
+                    "on-error-container": "#93000a",
+                    "surface-variant": "#e4e2e5",
+                    "tertiary": "#180d00",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed": "#281900",
+                    "background": "#fbf8fb",
+                    "on-secondary-container": "#005370",
+                    "primary-fixed-dim": "#bdc5ea",
+                    "surface-container-low": "#f6f3f6",
+                    "on-primary-fixed": "#111a37",
+                    "primary": "#040d2a",
+                    "on-primary": "#ffffff",
+                    "inverse-primary": "#bdc5ea",
+                    "on-tertiary-container": "#a4875a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-sm": "8px",
+                    "container-padding": "20px",
+                    "gutter": "16px",
+                    "stack-md": "16px",
+                    "stack-lg": "24px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "label-lg": ["DM Sans"],
+                    "title-lg": ["DM Sans"],
+                    "headline-md": ["DM Sans"],
+                    "body-lg": ["DM Sans"],
+                    "body-md": ["DM Sans"],
+                    "label-sm": ["DM Sans"],
+                    "display-lg": ["DM Sans"]
+            },
+            "fontSize": {
+                    "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "600"}],
+                    "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-md": ["22px", {"lineHeight": "28px", "fontWeight": "700"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'DM Sans', sans-serif; background-color: #f5f7fa; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .soft-shadow {
+            box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.08);
+        }
+        .bento-card {
+            border-radius: 32px;
+            background: #ffffff;
+            padding: 20px;
+            transition: transform 0.2s ease;
+        }
+        .bento-card:active { transform: scale(0.98); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .chart-bar { transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-40 bg-surface flex items-center justify-between px-container-padding py-stack-md shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A clean and modern logo for a professional laundry service business. The design features a stylized blue water droplet merging with a fabric texture icon. The aesthetic is minimalist and high-end, utilizing a palette of deep navy and bright sky blue against a crisp white background, suitable for a mobile app's brand identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmvpKLpMX34pxYD8O0Gh3xXrZkupB1IqoLPd_HhCLxqGuuOmQDPwwXvyqkqitLR8-dLPp_qOomE7ytzhBjwNMUeTOkJyMJRBMVb1JBxVHHIDntuywL354O3iYfgG0qCt_rEVI3XpDVBM8pUd-ADCWsaDUrIyjrp8Qwn8A1mHNYEF6rG1nWcny5Ch2VYWmYo8-f677fl2-AHTNPV-LcgMvtYg8gd-PoMPmQhC3XWrKFHIEqICFyIAk8qd5TrbEhnC7f7ucaF4Q_gbuV">
+</div>
+<h1 class="text-primary font-headline-md text-headline-md tracking-tight">LaundryKu</h1>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container-high transition-colors active:scale-95 duration-100">
+<span class="material-symbols-outlined text-on-surface-variant">settings</span>
+</button>
+</header>
+<main class="pt-24 px-container-padding space-y-stack-lg max-w-md mx-auto">
+<!-- Header & Date Range Picker -->
+<section class="flex flex-col gap-stack-sm">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-md text-headline-md text-primary">Laporan Bisnis</h2>
+<button class="bg-secondary-container text-on-secondary-container px-4 py-2 rounded-full font-label-lg text-label-lg flex items-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+                    Export PDF/CSV
+                </button>
+</div>
+<div class="bg-surface-container-low rounded-full px-5 py-3 flex items-center justify-between border border-outline-variant/30">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant">calendar_today</span>
+<span class="font-body-md text-body-md text-on-surface">01 Okt - 31 Okt 2023</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</div>
+</section>
+<!-- Revenue Summary Card -->
+<section class="bg-primary text-on-primary p-6 rounded-[28px] soft-shadow relative overflow-hidden">
+<div class="absolute -right-8 -top-8 w-32 h-32 bg-secondary opacity-20 rounded-full blur-3xl"></div>
+<div class="flex flex-col gap-1">
+<p class="font-label-lg text-label-lg text-primary-fixed-dim/80">Total Pendapatan</p>
+<h3 class="font-display-lg text-display-lg font-extrabold tracking-tight">Rp 24.850.000</h3>
+</div>
+<div class="mt-6 bg-primary-container rounded-2xl p-1 flex items-center justify-between">
+<button class="flex-1 py-2 rounded-xl text-label-lg font-label-lg bg-secondary text-on-secondary shadow-sm transition-all">Harian</button>
+<button class="flex-1 py-2 rounded-xl text-label-lg font-label-lg text-on-primary-container hover:bg-white/5 transition-all">Mingguan</button>
+<button class="flex-1 py-2 rounded-xl text-label-lg font-label-lg text-on-primary-container hover:bg-white/5 transition-all">Bulanan</button>
+</div>
+<div class="mt-6 flex items-center justify-between text-label-sm font-label-sm">
+<div class="flex items-center gap-1.5 text-secondary-container">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+<span>+12% dari bulan lalu</span>
+</div>
+<span class="text-primary-fixed-dim/60">Updated: 10:24 AM</span>
+</div>
+</section>
+<!-- Top Services Chart (Bento Grid Style) -->
+<section class="space-y-stack-md">
+<h4 class="font-title-lg text-title-lg text-on-surface px-1">Layanan Terpopuler</h4>
+<div class="bg-white p-6 rounded-[32px] soft-shadow">
+<div class="flex items-end justify-around h-40 gap-4 mb-4">
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="chart-bar w-full bg-secondary-container rounded-t-xl" style="height: 85%;"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Cuci</span>
+</div>
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="chart-bar w-full bg-secondary rounded-t-xl" style="height: 60%;"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Setrika</span>
+</div>
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="chart-bar w-full bg-secondary-container rounded-t-xl" style="height: 40%;"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Bedding</span>
+</div>
+<div class="flex flex-col items-center gap-2 w-full">
+<div class="chart-bar w-full bg-outline-variant rounded-t-xl" style="height: 25%;"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Sepatu</span>
+</div>
+</div>
+<div class="pt-4 border-t border-surface-container-high flex justify-between items-center">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-secondary-container"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Ekspres</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-secondary"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Reguler</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Piutang List -->
+<section class="space-y-stack-md pb-12">
+<div class="flex items-center justify-between px-1">
+<h4 class="font-title-lg text-title-lg text-on-surface">Piutang Pelanggan</h4>
+<button class="text-secondary font-label-lg text-label-lg">Lihat Semua</button>
+</div>
+<div class="space-y-stack-sm">
+<!-- Unpaid Item 1 -->
+<div class="bg-white p-5 rounded-[24px] soft-shadow flex items-center justify-between border-l-4 border-error">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-primary font-bold">AS</div>
+<div>
+<p class="font-title-lg text-title-lg text-on-surface">Agus Santoso</p>
+<p class="font-body-md text-body-md text-on-surface-variant">INV-2023-0892</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-title-lg text-title-lg text-error">Rp 125.000</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Jatuh Tempo: 2 Hari</p>
+</div>
+</div>
+<!-- Unpaid Item 2 -->
+<div class="bg-white p-5 rounded-[24px] soft-shadow flex items-center justify-between border-l-4 border-error/50">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-primary font-bold">MT</div>
+<div>
+<p class="font-title-lg text-title-lg text-on-surface">Maya T. </p>
+<p class="font-body-md text-body-md text-on-surface-variant">INV-2023-0901</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-title-lg text-title-lg text-error">Rp 45.000</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Jatuh Tempo: Hari ini</p>
+</div>
+</div>
+<!-- Unpaid Item 3 -->
+<div class="bg-white p-5 rounded-[24px] soft-shadow flex items-center justify-between border-l-4 border-error/30">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-primary font-bold">BK</div>
+<div>
+<p class="font-title-lg text-title-lg text-on-surface">Budi Kurnia</p>
+<p class="font-body-md text-body-md text-on-surface-variant">INV-2023-0915</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-title-lg text-title-lg text-error">Rp 210.000</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Jatuh Tempo: 5 Hari</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full bg-surface flex justify-around items-center px-4 pb-6 pt-3 rounded-t-[28px] shadow-[0_-4px_16px_0_rgba(0,0,0,0.12)] z-50">
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest rounded-full transition-colors p-2 px-4">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest rounded-full transition-colors p-2 px-4">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-label-sm text-label-sm">Order</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest rounded-full transition-colors p-2 px-4">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm">Customer</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-5 py-1.5 transition-transform active:scale-90 duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">assessment</span>
+<span class="font-label-sm text-label-sm font-bold">Laporan</span>
+</button>
+</nav>
+<script>
+        // Micro-interactions for chart bars
+        document.querySelectorAll('.chart-bar').forEach(bar => {
+            bar.addEventListener('mouseenter', () => {
+                bar.style.filter = 'brightness(1.1)';
+                bar.style.transform = 'translateY(-4px)';
+            });
+            bar.addEventListener('mouseleave', () => {
+                bar.style.filter = 'brightness(1)';
+                bar.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Revenue toggle simulation
+        const toggleButtons = document.querySelectorAll('button.flex-1');
+        toggleButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                toggleButtons.forEach(b => {
+                    b.classList.remove('bg-secondary', 'text-on-secondary', 'shadow-sm');
+                    b.classList.add('text-on-primary-container');
+                });
+                btn.classList.remove('text-on-primary-container');
+                btn.classList.add('bg-secondary', 'text-on-secondary', 'shadow-sm');
+                
+                // Animate bars on switch
+                document.querySelectorAll('.chart-bar').forEach(bar => {
+                    const originalHeight = bar.style.height;
+                    bar.style.height = '0%';
+                    setTimeout(() => {
+                        bar.style.height = originalHeight;
+                    }, 50);
+                });
+            });
+        });
+    </script>
+</body></html>

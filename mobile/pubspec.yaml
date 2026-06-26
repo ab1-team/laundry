@@ -1,0 +1,84 @@
+name: laundry
+description: "SaaS Laundry Management - Mobile App"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # HTTP client
+  dio: ^5.7.0
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Secure storage for auth token
+  flutter_secure_storage: ^9.2.2
+
+  # Local preferences (theme mode, language)
+  shared_preferences: ^2.3.2
+
+  # Fonts (DM Sans)
+  google_fonts: ^6.2.1
+
+  # Number / date formatting (Rupiah, "12 Okt 2023")
+  intl: ^0.20.2
+  fl_chart: ^1.2.0
+  pdf: ^3.12.0
+  printing: ^5.14.3
+
+  # Pick image from gallery / camera (tenant logo upload)
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Native splash screen (auto-generates Android XML + iOS storyboard).
+  flutter_native_splash: ^2.4.4
+
+  # Rename Android applicationId + iOS bundleId.
+  change_app_package_name: ^1.5.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/Lato-Regular.ttf
+    - assets/fonts/Lato-Bold.ttf
+
+flutter_native_splash:
+  # Background mengikuti theme HP:
+  #   Light mode → #F5F7FA (AppColors.background)
+  #   Dark mode  → #15171C (sama dengan surface dark di main.dart)
+  # Konsisten dengan Flutter app surface, supaya tidak ada flash hitam
+  # saat app boot di dark mode.
+  color: "#F5F7FA"
+  color_dark: "#15171C"
+
+  # Logo center dari icon launcher LaundryAja.
+  # `image_dark` opsional — kalau dikosongkan, pakai image yang sama.
+  image: assets/splash/logo.png
+
+  # Tetap informasikan Android 12+ tentang light/dark variants.
+  # Pakai key `image` (bukan `branding`) di versi 2.4.x.
+  android_12:
+    color: "#F5F7FA"
+    color_dark: "#15171C"
+    image: assets/splash/logo.png
+
+  # iOS — tidak dipakai (project ini Android-only), tapi tulis default
+  # supaya tool tidak error kalau iOS ditambahkan nanti.
+  ios: false
+  web: false

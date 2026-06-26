@@ -1,0 +1,274 @@
+<!DOCTYPE html><html lang="id"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        body {
+            font-family: 'DM Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-header {
+            backdrop-filter: blur(12px);
+            background: rgba(251, 248, 251, 0.8);
+        }
+        .order-card-shadow {
+            box-shadow: 0 4px 16px 0 rgba(17, 26, 55, 0.08);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-container": "#332100",
+                        "surface-container": "#f0edf0",
+                        "outline-variant": "#c6c6ce",
+                        "secondary-fixed": "#c2e8ff",
+                        "on-error": "#ffffff",
+                        "inverse-surface": "#303033",
+                        "surface-bright": "#fbf8fb",
+                        "on-surface": "#1b1b1e",
+                        "inverse-on-surface": "#f3f0f3",
+                        "surface-container-highest": "#e4e2e5",
+                        "surface": "#fbf8fb",
+                        "on-tertiary-fixed-variant": "#59431c",
+                        "on-primary-fixed-variant": "#3d4665",
+                        "secondary": "#006688",
+                        "primary-container": "#1a2340",
+                        "tertiary-fixed": "#ffdeab",
+                        "on-background": "#1b1b1e",
+                        "on-secondary": "#ffffff",
+                        "surface-dim": "#dcd9dc",
+                        "on-primary-container": "#828aad",
+                        "surface-container-lowest": "#ffffff",
+                        "outline": "#76767e",
+                        "on-secondary-fixed": "#001e2b",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#004d67",
+                        "secondary-container": "#58cafe",
+                        "surface-container-high": "#eae7ea",
+                        "primary-fixed": "#dbe1ff",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#e2c290",
+                        "on-error-container": "#93000a",
+                        "surface-variant": "#e4e2e5",
+                        "tertiary": "#180d00",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed": "#281900",
+                        "background": "#fbf8fb",
+                        "on-secondary-container": "#005370",
+                        "primary-fixed-dim": "#bdc5ea",
+                        "surface-container-low": "#f6f3f6",
+                        "on-primary-fixed": "#111a37",
+                        "primary": "#040d2a",
+                        "on-primary": "#ffffff",
+                        "inverse-primary": "#bdc5ea",
+                        "on-tertiary-container": "#a4875a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-sm": "8px",
+                        "container-padding": "20px",
+                        "gutter": "16px",
+                        "stack-md": "16px",
+                        "stack-lg": "24px",
+                        "base": "4px"
+                    },
+                    "fontFamily": {
+                        "label-lg": ["DM Sans"],
+                        "title-lg": ["DM Sans"],
+                        "headline-md": ["DM Sans"],
+                        "body-lg": ["DM Sans"],
+                        "body-md": ["DM Sans"],
+                        "label-sm": ["DM Sans"],
+                        "display-lg": ["DM Sans"]
+                    },
+                    "fontSize": {
+                        "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "600"}],
+                        "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-md": ["22px", {"lineHeight": "28px", "fontWeight": "700"}],
+                        "headline-md-mobile": ["20px", {"lineHeight": "26px", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface min-h-screen pb-32">
+<!-- Top App Bar -->
+<header class="fixed top-0 z-40 w-full glass-header flex items-center justify-between px-container-padding py-stack-md shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-primary-container flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="A professional circular logo for a laundry business named LaundryKu. The logo features a minimalist washing machine icon in vibrant sky blue against a deep navy background. The overall style is clean, modern, and trustworthy, reflecting high-quality service." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7VEK21VeJvdvGxw2NikR4suD7TYO_NRNvokrRNyy7rk5XntdAP-xNvsU79qv6WiDOMCi1AnFZ5tDLn7P7tm4c28xO-9B_cCU4rFmha_hHSRNS2MhsO5TIDCNe-8QzCtVN_0iCS-guaQLfbLTwjBiI37Nqph8MmXlKlJyUC1Bfc7kPQxzOHj-B5zeMOTIqk4rWfmV0Zr5debsuHYOfKaOefHcdJJd5Nt4XICScwg5nKa-D5i6yIor0PIpMNAH0A_yndR2lfUom7Wh7">
+</div>
+<h1 class="font-headline-md-mobile text-headline-md-mobile font-bold text-primary">LaundryKu</h1>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container-high transition-colors active:scale-95 duration-100">
+<span class="material-symbols-outlined text-primary" data-icon="settings">settings</span>
+</button>
+</header>
+<main class="pt-24 px-container-padding">
+<!-- Search Bar -->
+<div class="relative w-full mb-stack-lg">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="w-full h-12 pl-12 pr-4 bg-surface-container-lowest border-none rounded-[20px] shadow-sm focus:ring-2 focus:ring-secondary-container font-body-md text-on-surface placeholder-outline" placeholder="Cari nama atau no. nota..." type="text">
+</div>
+<!-- Filter Tabs -->
+<div class="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
+<button class="px-6 py-2.5 rounded-full bg-primary text-on-primary font-label-lg text-label-lg whitespace-nowrap active:scale-95 transition-transform">Semua</button>
+<button class="px-6 py-2.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-lg text-label-lg whitespace-nowrap active:scale-95 transition-transform">Aktif</button>
+<button class="px-6 py-2.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-lg text-label-lg whitespace-nowrap active:scale-95 transition-transform">Selesai</button>
+<button class="px-6 py-2.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-lg text-label-lg whitespace-nowrap active:scale-95 transition-transform">Diambil</button>
+</div>
+<!-- Order List Section -->
+<div class="flex flex-col gap-gutter mt-2">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest rounded-[28px] p-container-padding order-card-shadow border border-surface-container-high flex flex-col gap-3 relative overflow-hidden group active:scale-[0.98] transition-all">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">#TRX-8821</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">Budi Darmawan</h3>
+</div>
+<span class="px-3 py-1 rounded-full bg-secondary-container/20 text-on-secondary-container font-label-sm text-label-sm">Proses</span>
+</div>
+<div class="flex items-center gap-4 py-2 border-y border-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]" data-icon="weight">weight</span>
+<span class="font-body-md text-body-md">5.2 kg</span>
+</div>
+<div class="flex items-center gap-2 border-l border-surface-container pl-4">
+<span class="material-symbols-outlined text-secondary text-[20px]" data-icon="dry_cleaning">dry_cleaning</span>
+<span class="font-body-md text-body-md">Cuci Kiloan</span>
+</div>
+</div>
+<div class="flex justify-between items-center mt-1">
+<div class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-[18px]" data-icon="calendar_today">calendar_today</span>
+<span class="font-label-sm text-label-sm">12 Okt 2023, 09:15</span>
+</div>
+<span class="font-label-lg text-label-lg text-primary">Rp 45.000</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest rounded-[28px] p-container-padding order-card-shadow border border-surface-container-high flex flex-col gap-3 relative overflow-hidden group active:scale-[0.98] transition-all">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">#TRX-8822</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">Siti Aminah</h3>
+</div>
+<span class="px-3 py-1 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm">Menunggu</span>
+</div>
+<div class="flex items-center gap-4 py-2 border-y border-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]" data-icon="weight">weight</span>
+<span class="font-body-md text-body-md">2.0 kg</span>
+</div>
+<div class="flex items-center gap-2 border-l border-surface-container pl-4">
+<span class="material-symbols-outlined text-secondary text-[20px]" data-icon="iron">iron</span>
+<span class="font-body-md text-body-md">Setrika Saja</span>
+</div>
+</div>
+<div class="flex justify-between items-center mt-1">
+<div class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-[18px]" data-icon="calendar_today">calendar_today</span>
+<span class="font-label-sm text-label-sm">12 Okt 2023, 10:30</span>
+</div>
+<span class="font-label-lg text-label-lg text-primary">Rp 16.000</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest rounded-[28px] p-container-padding order-card-shadow border border-surface-container-high flex flex-col gap-3 relative overflow-hidden group active:scale-[0.98] transition-all">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">#TRX-8819</span>
+<h3 class="font-title-lg text-title-lg text-on-surface">Agus Santoso</h3>
+</div>
+<span class="px-3 py-1 rounded-full bg-green-100 text-green-800 font-label-sm text-label-sm">Selesai</span>
+</div>
+<div class="flex items-center gap-4 py-2 border-y border-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]" data-icon="inventory_2">inventory_2</span>
+<span class="font-body-md text-body-md">1 Unit</span>
+</div>
+<div class="flex items-center gap-2 border-l border-surface-container pl-4">
+<span class="material-symbols-outlined text-secondary text-[20px]" data-icon="checkroom">checkroom</span>
+<span class="font-body-md text-body-md">Cuci Bedcover</span>
+</div>
+</div>
+<div class="flex justify-between items-center mt-1">
+<div class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-[18px]" data-icon="calendar_today">calendar_today</span>
+<span class="font-label-sm text-label-sm">11 Okt 2023, 15:45</span>
+</div>
+<span class="font-label-lg text-label-lg text-primary">Rp 35.000</span>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB -->
+<button class="fixed bottom-28 right-6 w-16 h-16 rounded-full bg-secondary-container text-on-secondary-container shadow-[0_8px_20px_0_rgba(88,202,254,0.4)] flex items-center justify-center active:scale-90 transition-all duration-200 z-50">
+<span class="material-symbols-outlined text-[32px]" data-icon="add" style="font-variation-settings: 'FILL' 0, 'wght' 600;">add</span>
+</button>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full bg-surface shadow-[0_-4px_16px_0_rgba(0,0,0,0.08)] rounded-t-[28px] flex justify-around items-center px-4 pb-8 pt-4 z-50">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors px-4 py-1.5 rounded-full group" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-5 py-1.5 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="receipt_long" style="font-variation-settings: 'FILL' 1;">receipt_long</span>
+<span class="font-label-sm text-label-sm mt-1 font-bold">Order</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors px-4 py-1.5 rounded-full group" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm text-label-sm mt-1">Customer</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors px-4 py-1.5 rounded-full group" href="#">
+<span class="material-symbols-outlined" data-icon="assessment">assessment</span>
+<span class="font-label-sm text-label-sm mt-1">Laporan</span>
+</a>
+</nav>
+<script>
+        // Simple micro-interaction for filter tabs
+        document.querySelectorAll('button[class*="rounded-full"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if(this.parentElement.classList.contains('overflow-x-auto')) {
+                    document.querySelectorAll('button[class*="rounded-full"]').forEach(b => {
+                        if(b.parentElement.classList.contains('overflow-x-auto')) {
+                            b.classList.remove('bg-primary', 'text-on-primary');
+                            b.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+                        }
+                    });
+                    this.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+                    this.classList.add('bg-primary', 'text-on-primary');
+                }
+            });
+        });
+
+        // Add scroll behavior to header
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 20) {
+                header.classList.add('shadow-md');
+            } else {
+                header.classList.remove('shadow-md');
+            }
+        });
+    </script>
+</body></html>
