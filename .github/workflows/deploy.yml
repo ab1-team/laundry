@@ -38,13 +38,13 @@ jobs:
               fi
             fi
 
-            # Build image (vendor di-install di dalam image oleh Dockerfile,
-            # host tidak perlu install Composer / PHP / apapun).
-            #
-            # --no-cache supaya Dockerfile baru (yang exclude .env)
-            # benar-benar dipakai.
+            # Build image. Tanpa --no-cache supaya Docker pakai layer cache
+            # dari build sebelumnya — second build hanya ~30 detik karena
+            # cuma re-build layer yang berubah. cold build (~2-3 menit)
+            # hanya di first deploy atau kalau Dockerfile/composer.lock
+            # berubah.
             echo "Building image..."
-            docker compose build --no-cache app
+            docker compose build app
 
             docker compose down --remove-orphans
             docker compose up -d

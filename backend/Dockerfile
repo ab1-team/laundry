@@ -1,30 +1,28 @@
 FROM php:8.4-fpm-alpine AS base
 
-# Install dependencies
+# Install system deps untuk compile PHP extensions (gd + intl).
+# Hanya 2 extension yang compile — bukan 5. Sisanya (pdo_mysql,
+# mbstring, zip, bcmath, opcache) sudah include di base image.
 RUN apk add --no-cache \
-    libzip-dev \
-    oniguruma-dev \
     libpng-dev \
     freetype-dev \
     libjpeg-turbo-dev \
     icu-dev \
     linux-headers
 
-# Install PHP extensions
+# Compile gd + intl dari source. ~2 menit total.
+# gd = image processing (logo, icon)
+# intl = format tanggal id_ID
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install \
-    pdo_mysql \
-    mbstring \
-    zip \
-    gd \
-    bcmath \
-    intl \
-    opcache
+    && docker-php-ext-install -j$(nproc) gd intl
 
-# Install Redis extension
+# Redis extension (untuk session + cache driver).
+# pecl install ringan (~30 detik) karena build pakai pre-compiled
+# binary di PECL registry.
 RUN apk add --no-cache $PHPIZE_DEPS \
     && pecl install redis \
-    && docker-php-ext-enable redis
+    && docker-php-ext-enable redis \
+    && apk del $PHPIZE_DEPS
 
 # Install Composer (binary only — tidak perlu install Composer terpisah
 # di host/server, image sudah membawa binary ini).
@@ -38,17 +36,10 @@ COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 # Install PHP dependencies (production: no dev). composer.lock pinning
 # supaya build reproducible — versi dependency selalu sama persis.
 COPY --chown=www-data:www-data composer.json composer.lock ./
-# --prefer-dist + GitHub dist mirror: download dari api.github.com (zipball),
-# bukan codeload.github.com/legacy.zip yang sering HTTP 400 untuk archived
-# PHP-FIG repos. COMPOSER_MAX_RETRIES rendah agar gagal cepat.
 ENV COMPOSER_MAX_RETRIES=2
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --no-progress
 
-# Copy application source. .env di-exclude lewat .dockerignore sehingga
-# image TIDAK berisi konfigurasi runtime — host yang punya .env via
-# bind-mount / env_file. bootstrap/cache juga di-exclude — cache di-
-# generate saat container start, bukan dari host (yang mungkin punya
-# dev cache yang refer ke package yang tidak ada di production).
+# Copy application source. .env di-exclude lewat .dockerignore.
 COPY --chown=www-data:www-data . .
 
 # Generate optimized autoloader untuk production.
