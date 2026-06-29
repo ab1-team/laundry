@@ -1,1 +1,18 @@
+# File yang TIDAK boleh masuk ke Docker image. Image harus runtime-only;
+# semua konfigurasi sensitif (APP_KEY, DB_PASSWORD) di-mount dari host
+# via `env_file` di docker-compose.yml.
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+.phpunit.result.cache
+.phpunit.cache
+.idea
+.vscode
+node_modules
 public/storage
+storage/*.key
+storage/pail
+tests
+**/*.log

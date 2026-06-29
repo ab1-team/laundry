@@ -25,6 +25,29 @@ jobs:
 
             git pull origin main
 
+            # .env tidak boleh di-overwrite oleh git pull — sudah di
+            # .gitignore, tapi amankan kalau ada setup salah: backup dulu,
+            # lalu restore kalau file masih ada setelah pull.
+            if [ -f .env ]; then
+              cp .env .env.deploy-backup
+            fi
+            git pull origin main
+            if [ -f .env.deploy-backup ] && [ ! -f .env ]; then
+              echo "::warning::.env hilang setelah git pull, restore dari backup."
+              mv .env.deploy-backup .env
+            elif [ -f .env.deploy-backup ]; then
+              rm .env.deploy-backup
+            fi
+
+            # Deploy pertama atau file terhapus: buat .env dari .env.example
+            # lalu generate APP_KEY. env_file di docker-compose akan mount
+            # file ini ke container.
+            if [ ! -f .env ]; then
+              echo "Membuat .env dari .env.example..."
+              cp .env.example .env
+              echo "APP_KEY akan di-generate setelah container jalan."
+            fi
+
             docker compose pull || true
             docker compose up -d
 
@@ -38,6 +61,15 @@ jobs:
               fi
               sleep 2
             done
+
+            # Generate APP_KEY kalau masih kosong (deploy pertama).
+            # env_file di docker-compose sudah mount .env ke container,
+            # jadi key yang di-generate persistent di host file.
+            CURRENT_KEY=$(grep '^APP_KEY=' .env | cut -d= -f2-)
+            if [ -z "$CURRENT_KEY" ]; then
+              echo "APP_KEY kosong — generate..."
+              docker compose exec -T app php artisan key:generate --force
+            fi
 
             # Jalankan migrasi. --force skip prompt konfirmasi di env
             # non-interaktif. Idempotent — Laravel skip migration yang

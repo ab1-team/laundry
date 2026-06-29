@@ -14,6 +14,18 @@ services:
       - laundry-net
       - web-network
 
+    # Single source of truth untuk environment: file `.env` di host
+    # (di-mount ke container sebagai /var/www/html/.env). Edit .env di
+    # host → restart container → env baru live. TIDAK PERNAH image
+    # membawa .env, sehingga deploy ulang image tidak akan menghapus
+    # konfigurasi server.
+    env_file:
+      - .env
+    volumes:
+      # Persist uploaded APK di luar container — kalau image di-rebuild,
+      # APK yang sudah di-upload tidak ikut hilang.
+      - ./storage/app:/var/www/html/storage/app
+
   nginx:
     build:
       context: .
