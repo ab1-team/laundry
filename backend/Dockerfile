@@ -38,9 +38,11 @@ COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 # Install PHP dependencies (production: no dev). composer.lock pinning
 # supaya build reproducible — versi dependency selalu sama persis.
 COPY --chown=www-data:www-data composer.json composer.lock ./
-ENV COMPOSER_MAX_RETRIES=5
-RUN composer clear-cache \
- && composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+# --prefer-dist + GitHub dist mirror: download dari api.github.com (zipball),
+# bukan codeload.github.com/legacy.zip yang sering HTTP 400 untuk archived
+# PHP-FIG repos. COMPOSER_MAX_RETRIES rendah agar gagal cepat.
+ENV COMPOSER_MAX_RETRIES=2
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --no-progress
 
 # Copy application source. .env di-exclude lewat .dockerignore sehingga
 # image TIDAK berisi konfigurasi runtime — host yang punya .env via
