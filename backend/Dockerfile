@@ -44,9 +44,9 @@ ENV COMPOSER_MAX_RETRIES=2
 # yang return HTTP 400 intermittent (terutama dari region Asia).
 RUN composer config --global github-protocols https
 
-# Parallel download untuk speed. Composer 2.x sudah default parallel,
-# -j$(nproc) hanya explicit set.
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --no-progress -j$(nproc)
+# Composer 2.x sudah parallel by default. Tidak perlu -j flag
+# (composer tidak punya -j, error).
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --no-progress
 
 # Copy application source. .env di-exclude lewat .dockerignore.
 COPY --chown=www-data:www-data . .
