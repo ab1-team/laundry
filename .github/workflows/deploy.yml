@@ -28,5 +28,35 @@ jobs:
             docker compose pull || true
             docker compose up -d
 
+            # Tunggu app + mysql sehat sebelum migrate — DB host harus
+            # bisa di-resolve dari container app (depends_on sudah cover,
+            # tapi MySQL butuh waktu untuk inisialisasi pertama run).
+            echo "Waiting for app container to be healthy..."
+            for i in $(seq 1 30); do
+              if docker compose exec -T app php -r 'exit(0);' >/dev/null 2>&1; then
+                break
+              fi
+              sleep 2
+            done
+
+            # Jalankan migrasi. --force skip prompt konfirmasi di env
+            # non-interaktif. Idempotent — Laravel skip migration yang
+            # sudah tercatat di tabel `migrations`.
+            #
+            # || true supaya deploy tidak gagal total kalau ada migration
+            # yang error (developer perlu lihat log, bukan block CI).
+            # Cek log di: docker compose logs --tail=100 app
+            echo "Running migrations..."
+            docker compose exec -T app php artisan migrate --force || {
+              echo "::warning::Migration gagal. Cek docker compose logs app untuk detail."
+              docker compose logs --tail=100 app
+            }
+
+            # Storage symlink kalau baru pertama deploy (idempotent).
+            docker compose exec -T app php artisan storage:link || true
+
+            # Optimize supaya config/route/view di-cache setelah deploy.
+            docker compose exec -T app php artisan optimize || true
+
             docker compose ps
             docker compose logs --tail=50 app
