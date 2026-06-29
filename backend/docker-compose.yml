@@ -15,18 +15,17 @@ services:
       - web-network
 
     # Bind-mount source code & .env dari host.
-    # ./         → /var/www/html          (source code: app/, config/, dll)
-    # ./.env     → /var/www/html/.env     (konfigurasi runtime)
-    # ./vendor   → /var/www/html/vendor   (dependensi PHP)
+    # ./storage/app → /var/www/html/storage/app (persist uploaded APK)
+    # ./.env         → /var/www/html/.env (konfigurasi runtime)
     #
-    # Mount 3 file/dir terpisah supaya container lihat source yang
-    # SAMA PERSIS dengan host. Edit di host = container ikut.
-    # key:generate di container = host .env ke-update.
-    working_dir: /var/www/html
+    # Image sudah include source + vendor (di-build oleh Dockerfile),
+    # sehingga container tidak perlu bind-mount source/vendor. Yang
+    # di-bind-mount hanya file .env dan storage upload — data yang
+    # ditulis runtime (bukan source code).
+    env_file:
+      - .env
     volumes:
-      - ./:/var/www/html
-      - ./.env:/var/www/html/.env
-      - ./vendor:/var/www/html/vendor
+      - ./storage/app:/var/www/html/storage/app
 
   nginx:
     build:

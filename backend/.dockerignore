@@ -22,3 +22,13 @@ storage/app/public
 tests
 **/*.log
 docker-compose.override.yml
+# vendor/ di-generate di dalam image oleh Dockerfile (`composer install
+# --no-dev`). COPY . . di Dockerfile akan overwrite vendor/ host (yang
+# mungkin punya dev deps dari local `composer install`), jadi kita
+# exclude dari build context.
+vendor
+# Laravel cache files — di-generate runtime dari container, bukan host.
+# Host cache mungkin refer ke dev deps (pail, pao) yang tidak ada di
+# production install. Biarkan container yang generate.
+bootstrap/cache/*.php
+!bootstrap/cache/.gitkeep

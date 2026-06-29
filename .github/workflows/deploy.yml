@@ -25,36 +25,32 @@ jobs:
 
             git pull origin main
 
-            # .env tidak boleh di-overwrite oleh git pull — sudah di
-            # .gitignore, tapi amankan kalau ada setup salah: backup dulu,
-            # lalu restore kalau file masih ada setelah pull.
-            if [ -f .env ]; then
-              cp .env .env.deploy-backup
-            fi
-            git pull origin main
-            if [ -f .env.deploy-backup ] && [ ! -f .env ]; then
-              echo "::warning::.env hilang setelah git pull, restore dari backup."
-              mv .env.deploy-backup .env
-            elif [ -f .env.deploy-backup ]; then
-              rm .env.deploy-backup
-            fi
-
-            # Deploy pertama atau file terhapus: buat .env dari .env.example
-            # lalu generate APP_KEY. env_file di docker-compose akan mount
-            # file ini ke container.
+            # Preserve .env across deploys. File di-.gitignore sehingga
+            # git pull tidak menimpanya — tapi kalau hilang, generate
+            # ulang dari .env.example.
             if [ ! -f .env ]; then
-              echo "Membuat .env dari .env.example..."
-              cp .env.example .env
-              echo "APP_KEY akan di-generate setelah container jalan."
+              if [ -f .env.example ]; then
+                echo "Membuat .env dari .env.example..."
+                cp .env.example .env
+              else
+                echo "::error::.env.example tidak ada — tidak bisa bootstrap .env."
+                exit 1
+              fi
             fi
 
-            docker compose pull || true
+            # Build image (vendor di-install di dalam image oleh Dockerfile,
+            # host tidak perlu install Composer / PHP / apapun).
+            #
+            # --no-cache supaya Dockerfile baru (yang exclude .env)
+            # benar-benar dipakai.
+            echo "Building image..."
+            docker compose build --no-cache app
+
+            docker compose down --remove-orphans
             docker compose up -d
 
-            # Tunggu app + mysql sehat sebelum migrate — DB host harus
-            # bisa di-resolve dari container app (depends_on sudah cover,
-            # tapi MySQL butuh waktu untuk inisialisasi pertama run).
-            echo "Waiting for app container to be healthy..."
+            # Tunggu container app siap.
+            echo "Waiting for app container..."
             for i in $(seq 1 30); do
               if docker compose exec -T app php -r 'exit(0);' >/dev/null 2>&1; then
                 break
@@ -62,37 +58,28 @@ jobs:
               sleep 2
             done
 
-            # Generate APP_KEY kalau masih kosong (deploy pertama).
-            # env_file di docker-compose sudah mount .env ke container,
-            # jadi key yang di-generate persistent di host file.
-            #
-            # Wajib di-clear config cache sebelum migrate / key:generate
-            # supaya perubahan env terbaca. Tanpa clear, Laravel pakai
-            # cache lama → APP_KEY tetap dianggap kosong walau sudah di-set.
+            # Clear cache sebelum apapun — pastikan .env baru terbaca.
             docker compose exec -T app php artisan config:clear || true
+            docker compose exec -T app php artisan cache:clear || true
+
+            # Generate APP_KEY kalau masih kosong (deploy pertama).
             CURRENT_KEY=$(grep '^APP_KEY=' .env | cut -d= -f2-)
             if [ -z "$CURRENT_KEY" ]; then
               echo "APP_KEY kosong — generate..."
               docker compose exec -T app php artisan key:generate --force
             fi
 
-            # Jalankan migrasi. --force skip prompt konfirmasi di env
-            # non-interaktif. Idempotent — Laravel skip migration yang
-            # sudah tercatat di tabel `migrations`.
-            #
-            # || true supaya deploy tidak gagal total kalau ada migration
-            # yang error (developer perlu lihat log, bukan block CI).
-            # Cek log di: docker compose logs --tail=100 app
+            # Run migrations. Idempotent.
             echo "Running migrations..."
             docker compose exec -T app php artisan migrate --force || {
               echo "::warning::Migration gagal. Cek docker compose logs app untuk detail."
               docker compose logs --tail=100 app
             }
 
-            # Storage symlink kalau baru pertama deploy (idempotent).
+            # Storage symlink (idempotent).
             docker compose exec -T app php artisan storage:link || true
 
-            # Optimize supaya config/route/view di-cache setelah deploy.
+            # Optimize caches.
             docker compose exec -T app php artisan optimize || true
 
             docker compose ps

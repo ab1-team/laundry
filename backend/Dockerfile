@@ -26,7 +26,8 @@ RUN apk add --no-cache $PHPIZE_DEPS \
     && pecl install redis \
     && docker-php-ext-enable redis
 
-# Install Composer
+# Install Composer (binary only — tidak perlu install Composer terpisah
+# di host/server, image sudah membawa binary ini).
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
@@ -34,15 +35,25 @@ WORKDIR /var/www/html
 # Override php-fpm pool to listen on 0.0.0.0 so nginx (other container) can reach
 COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 
-# Image ini HANYA runtime. Tidak ada source code, tidak ada .env.
-# Semua di-mount dari host lewat docker-compose.yml:
-#   - ./  → /var/www/html        (source code)
-#   - ./.env → /var/www/html/.env (konfigurasi runtime)
-# Container cuma PHP-FPM process; data hidup di host filesystem.
-#
-# Composer install tidak dilakukan di sini — vendor/ di-generate di
-# host saat pertama kali `composer install`, lalu folder vendor/
-# di-bind-mount juga. Atau jalankan di runtime via entrypoint.
+# Install PHP dependencies (production: no dev). composer.lock pinning
+# supaya build reproducible — versi dependency selalu sama persis.
+COPY --chown=www-data:www-data composer.json composer.lock ./
+ENV COMPOSER_MAX_RETRIES=5
+RUN composer clear-cache \
+ && composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+
+# Copy application source. .env di-exclude lewat .dockerignore sehingga
+# image TIDAK berisi konfigurasi runtime — host yang punya .env via
+# bind-mount / env_file. bootstrap/cache juga di-exclude — cache di-
+# generate saat container start, bukan dari host (yang mungkin punya
+# dev cache yang refer ke package yang tidak ada di production).
+COPY --chown=www-data:www-data . .
+
+# Generate optimized autoloader untuk production.
+RUN composer dump-autoload --optimize --no-dev --no-scripts
+
+# Set proper permissions
+RUN chown -R www-data:www-data /var/www/html
 
 USER www-data
 
