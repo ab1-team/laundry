@@ -38,6 +38,14 @@ COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 # supaya build reproducible — versi dependency selalu sama persis.
 COPY --chown=www-data:www-data composer.json composer.lock ./
 ENV COMPOSER_MAX_RETRIES=2
+
+# Force Composer pakai HTTPS ke GitHub via API, bukan codeload legacy.
+# Tanpa ini, beberapa mirror/config di server bisa redirect ke
+# codeload.github.com/legacy.zip yang return HTTP 400 untuk archived
+# PHP-FIG / Symfony repos.
+RUN composer config --global repos.packagist composer https://repo.packagist.org \
+    && composer config --global github-protocols https
+
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --no-progress
 
 # Copy application source. .env di-exclude lewat .dockerignore.
