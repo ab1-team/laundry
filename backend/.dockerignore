@@ -12,12 +12,12 @@
 .vscode
 node_modules
 public/storage
+# storage/logs dan storage/framework/{cache,sessions,views} harus ADA
+# di image — Laravel butuh folder ini untuk runtime (cache path,
+# session write, compiled views). Folder kosong (cuma .gitignore)
+# cukup — runtime akan create sub-folder sesuai kebutuhan.
 storage/*.key
 storage/pail
-storage/logs
-storage/framework/cache
-storage/framework/sessions
-storage/framework/views
 storage/app/public
 tests
 **/*.log
