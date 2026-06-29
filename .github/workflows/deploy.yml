@@ -58,18 +58,17 @@ jobs:
               sleep 2
             done
 
-            # Clear cache sebelum apapun — pastikan .env baru terbaca.
-            docker compose exec -T app php artisan config:clear || true
-            docker compose exec -T app php artisan cache:clear || true
-
             # Generate APP_KEY kalau masih kosong (deploy pertama).
+            # .env di-bind-mount dari host, jadi key:generate bisa tulis
+            # ke host file dan persistent.
             CURRENT_KEY=$(grep '^APP_KEY=' .env | cut -d= -f2-)
             if [ -z "$CURRENT_KEY" ]; then
               echo "APP_KEY kosong — generate..."
               docker compose exec -T app php artisan key:generate --force
             fi
 
-            # Run migrations. Idempotent.
+            # Run migrations SEBELUM cache:clear — kalau driver cache/session
+            # pakai database, tabel 'cache' dan 'sessions' harus exist dulu.
             echo "Running migrations..."
             docker compose exec -T app php artisan migrate --force || {
               echo "::warning::Migration gagal. Cek docker compose logs app untuk detail."
@@ -78,6 +77,10 @@ jobs:
 
             # Storage symlink (idempotent).
             docker compose exec -T app php artisan storage:link || true
+
+            # Clear config & view cache supaya .env baru terbaca.
+            docker compose exec -T app php artisan config:clear || true
+            docker compose exec -T app php artisan cache:clear || true
 
             # Optimize caches.
             docker compose exec -T app php artisan optimize || true
