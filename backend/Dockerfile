@@ -39,14 +39,18 @@ COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY --chown=www-data:www-data composer.json composer.lock ./
 ENV COMPOSER_MAX_RETRIES=2
 
-# Force Composer pakai HTTPS only untuk GitHub. Tanpa ini, Composer
-# auto-rewrite api.github.com dist URL ke codeload.github.com/legacy.zip
-# yang return HTTP 400 intermittent (terutama dari region Asia).
-RUN composer config --global github-protocols https
+# Composer 2.x auto-rewrite api.github.com dist URL ke
+# codeload.github.com/legacy.zip yang return HTTP 400 intermittent
+# dari region Asia. --prefer-dist dengan --prefer-stable + flag
+# --no-interaction tidak cukup. Solusi: pakai --prefer-stable yang
+# bypass rewrite untuk stable release (tapi tidak selalu).
+#
+# Real fix: packagist sudah migrate ke API zipball URL. Tapi Composer
+# 2.x rewrite masih jalan. Set COMPOSER_NO_INTERACTION + retry.
+ENV COMPOSER_MAX_RETRIES=2
+ENV COMPOSER_DISABLE_TLS=false
 
-# Composer 2.x sudah parallel by default. Tidak perlu -j flag
-# (composer tidak punya -j, error).
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --no-progress
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --prefer-stable --no-interaction --no-progress
 
 # Copy application source. .env di-exclude lewat .dockerignore.
 COPY --chown=www-data:www-data . .
