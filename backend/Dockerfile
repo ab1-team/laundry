@@ -10,11 +10,12 @@ RUN apk add --no-cache \
     icu-dev \
     linux-headers
 
-# Compile gd + intl dari source. ~2 menit total.
-# gd = image processing (logo, icon)
-# intl = format tanggal id_ID
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd intl
+# Install PHP extensions: pdo_mysql, gd, intl. Sisanya (mbstring,
+# zip, bcmath, opcache) sudah include di base image.
+#
+# Compile ~2 menit total karena ini extension yang berat (gd butuh
+# freetype + jpeg). pdo_mysql & intl cepat (~30 detik each).
+RUN docker-php-ext-install -j$(nproc) pdo_mysql gd intl
 
 # Redis extension (untuk session + cache driver).
 # pecl install ringan (~30 detik) karena build pakai pre-compiled
