@@ -38,6 +38,11 @@ jobs:
               fi
             fi
 
+            # chmod 0666 supaya container (jalan sebagai www-data) bisa
+            # tulis ke .env via bind-mount. Tanpa ini, artisan key:generate
+            # / config:cache error "Permission denied".
+            chmod 0666 .env
+
             # Build image. Tanpa --no-cache supaya Docker pakai layer cache
             # dari build sebelumnya — second build hanya ~30 detik karena
             # cuma re-build layer yang berubah. cold build (~2-3 menit)
