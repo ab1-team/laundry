@@ -43,10 +43,11 @@ jobs:
             # chmod saja tidak cukup — owner file bisa root (dari cp di atas
             # atau git pull) sehingga www-data bukan owner DAN bukan group,
             # jadi tulis ditolak walau mode 0666. chown memastikan owner
-            # match container user. Butuh sudo karena user SSH bukan root
-            # tapi punya hak sudo di server ini.
-            sudo chown 33:33 .env
-            chmod 0666 .env
+            # match container user. Butuh sudo karena (a) chown butuh owner
+            # match / root, dan (b) chmod juga butuh owner / root setelah
+            # chown membuat file bukan milik user SSH lagi. 1x sudo sudah
+            # cover keduanya — tidak perlu chmod terpisah setelahnya.
+            sudo chown 33:33 .env && sudo chmod 0666 .env
 
             # Build image. Tanpa --no-cache supaya Docker pakai layer cache
             # dari build sebelumnya — second build hanya ~30 detik karena
