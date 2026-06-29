@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'core/update/update_gate.dart';
+import 'core/update/update_service.dart';
 import 'features/auth/presentation/auth_provider.dart';
 import 'features/settings/presentation/settings_provider.dart';
 
@@ -40,7 +42,14 @@ Future<void> main() async {
     systemNavigationBarContrastEnforced: false,
   ));
   runApp(ProviderScope(
-    overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      // Sinkronkan versi runtime dengan pubspec.yaml. Kalau lupa override,
+      // default fallback di update_service.dart akan dipakai.
+      packageInfoProvider.overrideWithValue(
+        const PackageInfo(versionName: '1.1.0', versionCode: 2),
+      ),
+    ],
     child: const LaundryApp(),
   ));
 }
@@ -119,14 +128,16 @@ class _RouterAppState extends ConsumerState<_RouterApp> {
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final locale = ref.watch(localeProvider);
-    return MaterialApp.router(
-      title: 'LaundryAja',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: themeMode,
-      locale: locale,
-      routerConfig: _router,
+    return UpdateGate(
+      child: MaterialApp.router(
+        title: 'LaundryAja',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: themeMode,
+        locale: locale,
+        routerConfig: _router,
+      ),
     );
   }
 }

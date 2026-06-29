@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AppVersionAdminController;
 use App\Http\Controllers\Api\Admin\TenantController;
+use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\OrderController;
@@ -25,6 +27,14 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
         Route::post('login',    [AuthController::class, 'login']);
+    });
+
+    // =====================
+    // App self-update (public — perlu dijangkau sebelum login)
+    // =====================
+    Route::prefix('app')->group(function () {
+        Route::get('version',        [AppVersionController::class, 'version']);
+        Route::get('apk/download',   [AppVersionController::class, 'downloadApk']);
     });
 
     // =====================
@@ -108,6 +118,12 @@ Route::prefix('v1')->group(function () {
                 Route::patch('tenants/{tenant}/activate', [TenantController::class, 'activate']);
                 Route::patch('tenants/{tenant}/suspend',  [TenantController::class, 'suspend']);
                 Route::apiResource('tenants', TenantController::class);
+
+                // App self-release management. {appVersion} di-resolve via route model
+                // binding — Laravel auto-inject AppVersion berdasarkan id di URL.
+                Route::post('app-versions/{appVersion}/upload',  [AppVersionAdminController::class, 'upload']);
+                Route::patch('app-versions/{appVersion}/activate', [AppVersionAdminController::class, 'activate']);
+                Route::apiResource('app-versions', AppVersionAdminController::class);
             });
     });
 });

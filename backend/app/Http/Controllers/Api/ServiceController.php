@@ -16,7 +16,7 @@ class ServiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Service::query()->with('category:id,name,icon');
+        $query = Service::query()->with('category:id,name,icon,sort_order');
 
         // Filter by category
         if ($categoryId = $request->query('category_id')) {
@@ -33,7 +33,18 @@ class ServiceController extends Controller
             $query->where('name', 'like', "%{$search}%");
         }
 
-        $services = $query->orderBy('name')->paginate(20);
+        // Order by category display order (ascending) so the operator sees
+        // categories in the same order they configured in Master Data.
+        // Join category table because sort_order lives there. Then order
+        // by category_id so services inside the same category stick
+        // together, and finally by name for a deterministic tie-breaker.
+        $services = $query
+            ->join('service_categories', 'services.category_id', '=', 'service_categories.id')
+            ->orderBy('service_categories.sort_order')
+            ->orderBy('services.category_id')
+            ->orderBy('services.name')
+            ->select('services.*')
+            ->paginate(20);
 
         return ApiResponse::paginated($services, ServiceResource::class);
     }

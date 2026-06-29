@@ -36,7 +36,11 @@ COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 
 # Install PHP dependencies (no dev dependencies for production)
 COPY --chown=www-data:www-data composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+# Retry on transient GitHub zipball flakes; use dist (default) and avoid
+# source fallback to archived repos like php-fig/simple-cache.
+ENV COMPOSER_MAX_RETRIES=5
+RUN composer clear-cache \
+ && composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
 
 # Copy application source
 COPY --chown=www-data:www-data . .

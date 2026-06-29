@@ -54,4 +54,9 @@
     <!-- Android 12 (API 32) ke bawah. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
+
+    <!-- In-app self-update: izinkan app memanggil package installer
+         untuk menginstall APK yang sudah didownload. Wajib untuk
+         install_apk di Android 8+. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 </manifest>

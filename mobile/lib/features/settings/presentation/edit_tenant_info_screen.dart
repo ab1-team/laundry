@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_ext.dart';
+import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../data/tenant_settings_repository.dart';
@@ -170,7 +171,7 @@ class _EditTenantInfoScreenState extends ConsumerState<EditTenantInfoScreen> {
 }
 
 void _toast(BuildContext context, String msg) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  showAppSnackBar(context, msg);
 }
 
 class _LogoPicker extends StatelessWidget {

@@ -164,7 +164,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
               // Two-row middle band (qty + service) when the order has
               // items; falls back to a 3-line layout otherwise.
               final segments = o.items.isNotEmpty
-                  ? buildOrderSegments(o.items.first)
+                  ? buildOrderSegments(o.items, maxSegments: 1)
                   : const <OrderSummarySegment>[];
               return OrderSummaryCard(
                 ticketNumber: '#${o.ticketNumber}',

@@ -2,7 +2,7 @@ name: laundry
 description: "SaaS Laundry Management - Mobile App"
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.10.0
@@ -39,6 +39,17 @@ dependencies:
 
   # Pick image from gallery / camera (tenant logo upload)
   image_picker: ^1.1.2
+
+  # Resolusi path internal storage untuk download APK update.
+  path_provider: ^2.1.4
+
+  # In-app self-update: download APK dari backend lalu trigger package
+  # installer Android. Tidak lewat Play Store — distribusi langsung.
+  install_plugin: ^2.1.0
+  # Permission runtime untuk install packages di Android 8+.
+  permission_handler: ^11.3.1
+  # Bantu parsing version string "1.2.0" jadi comparable.
+  pub_semver: ^2.1.4
 
 dev_dependencies:
   flutter_test:

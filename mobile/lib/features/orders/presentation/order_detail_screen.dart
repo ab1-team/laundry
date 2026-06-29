@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_ext.dart';
+import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/payment_method_card.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../data/order_model.dart';
@@ -529,18 +530,16 @@ class _PipelineCardState extends ConsumerState<_PipelineCard> {
       ref.invalidate(activeOrdersProvider);
       ref.invalidate(historyOrdersProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Status diupdate ke ${next.$2}'),
-            duration: const Duration(seconds: 2),
-          ),
+        showAppSnackBar(
+          context,
+          'Status diupdate ke ${next.$2}',
+          type: AppSnackBarType.success,
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal update: $e')),
-        );
+        showAppSnackBar(context, 'Gagal update: $e', type: AppSnackBarType.error);
       }
     } finally {
       if (mounted) setState(() => _updating = false);
@@ -754,15 +753,11 @@ class _PayOrderSheetState extends ConsumerState<_PayOrderSheet> {
     final raw = _amount.text.replaceAll('.', '');
     final amount = double.tryParse(raw) ?? 0;
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nominal pembayaran wajib diisi')),
-      );
+      showAppSnackBar(context, 'Nominal pembayaran wajib diisi', type: AppSnackBarType.error);
       return;
     }
     if (amount > widget.order.remaining) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Nominal melebihi sisa tagihan')),
-      );
+      showAppSnackBar(context, 'Nominal melebihi sisa tagihan', type: AppSnackBarType.error);
       return;
     }
     setState(() => _saving = true);
@@ -779,9 +774,7 @@ class _PayOrderSheetState extends ConsumerState<_PayOrderSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal: $e')),
-        );
+        showAppSnackBar(context, 'Gagal: $e', type: AppSnackBarType.error);
       }
     }
   }

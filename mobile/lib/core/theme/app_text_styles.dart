@@ -25,6 +25,12 @@ class AppTextStyles {
         height: 1.27, // 28/22
       );
 
+  static TextStyle get headingSm => GoogleFonts.dmSans(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        height: 1.33, // 24/18
+      );
+
   static TextStyle get titleLg => GoogleFonts.dmSans(
         fontSize: 18,
         fontWeight: FontWeight.w600,

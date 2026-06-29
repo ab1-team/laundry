@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_ext.dart';
+import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../data/tenant_settings_repository.dart';
 import 'settings_provider.dart';
@@ -134,5 +135,5 @@ class _EditTenantContactScreenState extends ConsumerState<EditTenantContactScree
 }
 
 void _toast(BuildContext context, String msg) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  showAppSnackBar(context, msg);
 }

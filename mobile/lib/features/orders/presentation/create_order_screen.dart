@@ -12,7 +12,10 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_ext.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/payment_method_card.dart';
+import '../../master/data/service.dart';
+import '../../master/data/service_category.dart';
 import '../../master/presentation/master_provider.dart';
 import '../../customers/presentation/customers_provider.dart';
 import 'orders_provider.dart';
@@ -30,13 +33,38 @@ class CreateOrderScreen extends ConsumerStatefulWidget {
 /// search if there are more matches.
 const int _kCustomerSearchLimit = 5;
 
+class _LineItem {
+  _LineItem({
+    required this.serviceId,
+    required this.categoryId,
+    required this.name,
+    required this.unit,
+    required this.categoryIcon,
+    required this.price,
+  }) : qty = 1;
+  final int serviceId;
+  final int categoryId;
+  final String name;
+  final String unit;
+  final String? categoryIcon;
+  final double price;
+  // Mutable: stepper buttons mutate `qty` directly on the line.
+  // ignore: prefer_final_fields
+  double qty;
+  double get subtotal => price * qty;
+}
+
 class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   int? _customerId;
   String? _customerName;
-  int? _categoryId;
-  int? _serviceId;
-  double _servicePrice = 0;
-  double _qty = 1;
+  // Filter pill on the Layanan section. `null` = "Semua" (show every category).
+  // No longer drives selection — service selection is now multi-checkbox.
+  int? _categoryFilterId;
+  // Selected line items; each entry is a service the operator checked off,
+  // with its own qty. Order = display order under Layanan.
+  final List<_LineItem> _items = [];
+  // O(1) "is this service currently in _items?" lookup, mirrors _items keys.
+  final Set<int> _checkedServiceIds = <int>{};
   String _payment = 'lunas'; // lunas | dp | hutang
   String _method = 'cash';
   final _notesCtrl = TextEditingController();
@@ -65,7 +93,48 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   String? _lastSearchTerm;
   List<Map<String, dynamic>>? _lastSearchResults;
 
-  double get _total => _servicePrice * _qty;
+  double get _total => _subtotal;
+
+  /// Sum of all selected line-item subtotals. Bound to the bottom
+  /// "Total Tagihan" row and to the DP validation upper bound.
+  double get _subtotal =>
+      _items.fold<double>(0, (acc, i) => acc + i.subtotal);
+
+  /// Toggle a service in/out of the order. Adds with default qty=1, removes
+  /// the existing line entirely (qty + row) when toggled off — no separate
+  /// delete button needed because unchecking achieves the same effect.
+  void _toggleService(Service service) {
+    setState(() {
+      if (_checkedServiceIds.contains(service.id)) {
+        _items.removeWhere((i) => i.serviceId == service.id);
+        _checkedServiceIds.remove(service.id);
+      } else {
+        _items.add(_LineItem(
+          serviceId: service.id,
+          categoryId: service.categoryId,
+          name: service.name,
+          unit: service.unit,
+          categoryIcon: service.categoryIcon,
+          price: service.price,
+        ));
+        _checkedServiceIds.add(service.id);
+      }
+    });
+  }
+
+  void _incrementQty(int index) {
+    setState(() {
+      final next = _items[index].qty + 0.5;
+      _items[index].qty = next.clamp(0.5, 999).toDouble();
+    });
+  }
+
+  void _decrementQty(int index) {
+    setState(() {
+      final next = _items[index].qty - 0.5;
+      _items[index].qty = next < 0.5 ? 0.5 : next.toDouble();
+    });
+  }
 
   Future<void> _runCustomerSearch(String query) async {
     if (query.trim().isEmpty) {
@@ -287,6 +356,10 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
           const SizedBox(height: 20),
           Text('Layanan', style: AppTextStyles.titleLg.copyWith(color: context.colors.primary)),
           const SizedBox(height: 8),
+          // Category filter row. "Semua" pill = null filter (show every
+          // category's services, grouped). Tapping a category pill filters
+          // the visible services to that one category only. Multi-select on
+          // services lives inside the list below.
           categoriesAsync.when(
             loading: () => const SizedBox(height: 40, child: Center(child: CircularProgressIndicator())),
             error: (e, _) => Text('Gagal: $e', style: TextStyle(color: context.colors.error)),
@@ -299,11 +372,17 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
+                    _CategoryChip(
+                      label: 'Semua',
+                      selected: _categoryFilterId == null,
+                      onTap: () => setState(() => _categoryFilterId = null),
+                    ),
+                    const SizedBox(width: 8),
                     for (final c in cats) ...[
                       _CategoryChip(
                         label: c.name,
-                        selected: _categoryId == c.id,
-                        onTap: () => setState(() { _categoryId = c.id; _serviceId = null; }),
+                        selected: _categoryFilterId == c.id,
+                        onTap: () => setState(() => _categoryFilterId = c.id),
                       ),
                       const SizedBox(width: 8),
                     ],
@@ -313,129 +392,93 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
             },
           ),
           const SizedBox(height: 12),
-          if (_categoryId != null)
-            servicesAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (e, _) => Text('Gagal: $e', style: TextStyle(color: context.colors.error)),
-              data: (all) {
-                final svcs = all.where((s) => s.categoryId == _categoryId).toList();
-                if (svcs.isEmpty) {
-                  return Text('Belum ada layanan di kategori ini.',
-                      style: AppTextStyles.bodyMd.copyWith(color: context.colors.onSurfaceVariant));
-                }
-                return Column(
-                  children: svcs.map((s) {
-                    final selected = _serviceId == s.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Material(
-                        color: selected ? context.colors.primary : context.colors.surface,
-                        // Unselected: pakai `shape` untuk border + radius,
-                        // selected: pakai `borderRadius` saja. Material
-                        // tidak boleh menerima keduanya bersamaan.
-                        shape: selected
-                            ? RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.input),
-                              )
-                            : RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.input),
-                                side: BorderSide(color: context.colors.outlineVariant),
+          // Service list, grouped by category. Each row is a checkbox card;
+          // checking a row expands an inline qty stepper below the name.
+          servicesAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (e, _) => Text('Gagal: $e', style: TextStyle(color: context.colors.error)),
+            data: (all) {
+              if (all.isEmpty) {
+                return Text('Belum ada layanan.',
+                    style: AppTextStyles.bodyMd.copyWith(color: context.colors.onSurfaceVariant));
+              }
+              // Group by categoryId; preserve category order via Map iteration
+              // (insertion order) so the list mirrors the filter pills above.
+              final filtered = _categoryFilterId == null
+                  ? all
+                  : all.where((s) => s.categoryId == _categoryFilterId).toList();
+              final groups = <int, List<Service>>{};
+              for (final s in filtered) {
+                groups.putIfAbsent(s.categoryId, () => <Service>[]).add(s);
+              }
+              // When viewing "Semua", sort the category groups by the
+              // category's display order (sort_order) so the order
+              // matches the filter pills above and what the owner set
+              // in Master Data. With a single-category filter the
+              // groups Map only has one entry so sort is a no-op.
+              List<MapEntry<int, List<Service>>> sortedEntries = groups.entries.toList();
+              if (_categoryFilterId == null) {
+                final catsById = {
+                  for (final c in categoriesAsync.value ?? const <ServiceCategory>[]) c.id: c,
+                };
+                sortedEntries.sort((a, b) {
+                  final ao = catsById[a.key]?.sortOrder ?? 0;
+                  final bo = catsById[b.key]?.sortOrder ?? 0;
+                  if (ao != bo) return ao.compareTo(bo);
+                  // Tie-break by name so equal sort_order values get a
+                  // deterministic (alphabetical) ordering.
+                  final an = catsById[a.key]?.name ?? '';
+                  final bn = catsById[b.key]?.name ?? '';
+                  return an.compareTo(bn);
+                });
+              }
+              return ConstrainedBox(
+                // Cap the visible service list so a tenant with many
+                // services doesn't push the payment/total sections off
+                // the screen. The list scrolls internally; the outer
+                // page ListView continues to drive the rest of the form.
+                constraints: const BoxConstraints(maxHeight: 360),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final entry in sortedEntries) ...[
+                        // Category section title only renders when
+                        // viewing "Semua" (multiple categories shown
+                        // at once). When a single category is filtered
+                        // in, the title is redundant — the filter pill
+                        // already tells the user what they're looking
+                        // at — so we hide it for a cleaner list.
+                        if (_categoryFilterId == null)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+                            child: Text(
+                              // Local label fallback — the service model exposes
+                              // categoryName only when joined server-side; for the
+                              // standalone master load we fall back to the
+                              // category filter chip the user is currently inside.
+                              // In practice backend joins always populate this.
+                              entry.value.first.categoryName ?? _categoryFilterLabel(categoriesAsync, entry.key),
+                              style: AppTextStyles.labelSm.copyWith(
+                                color: context.colors.outline,
+                                letterSpacing: 1.5,
                               ),
-                        elevation: selected ? 0 : 1,
-                        shadowColor: AppColors.primary.withValues(alpha: 0.08),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(AppRadius.input),
-                          onTap: () => setState(() {
-                            _serviceId = s.id;
-                            _servicePrice = s.price;
-                          }),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Expanded(child: Text(s.name, style: AppTextStyles.bodyLg.copyWith(
-                                  color: selected ? AppColors.onPrimary : context.colors.onSurface,
-                                ))),
-                                Text(
-                                  '${rupiah.format(s.price)} / ${s.unit}',
-                                  style: AppTextStyles.labelLg.copyWith(
-                                    color: selected ? AppColors.onPrimary : context.colors.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-
-          const SizedBox(height: 20),
-          // Qty stepper — DESIGN.md: 32px radius card, 2px border, shadow 0.12.
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: context.colors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.summary),
-              border: Border.all(color: context.colors.surfaceContainerHighest, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Text('Jumlah Pesanan', style: AppTextStyles.labelLg.copyWith(color: context.colors.onSurfaceVariant)),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        // DESIGN.md: secondary-container at 20% opacity.
-                        color: AppColors.secondaryContainer.withValues(alpha: 0.20),
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                      ),
-                      child: Text('Kg / Pcs', style: AppTextStyles.labelSm.copyWith(color: AppColors.onSecondaryContainer)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _StepperBtn(icon: Icons.remove, onTap: () => setState(() => _qty = (_qty - 0.5).clamp(0.5, 999))),
-                    const SizedBox(width: 32),
-                    Column(
-                      children: [
-                        // DESIGN.md: display-lg 32px centred, not 48.
-                        Text(_qty.toStringAsFixed(1), style: AppTextStyles.displayLg),
-                        const SizedBox(height: 4),
-                        // DESIGN.md: label-sm uppercase tracking-widest, outline color.
-                        Text(
-                          'BERAT ESTIMASI',
-                          style: AppTextStyles.labelSm.copyWith(
-                            color: context.colors.outline,
-                            letterSpacing: 1.5,
+                        for (final s in entry.value)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _buildServiceRow(s),
                           ),
-                        ),
                       ],
-                    ),
-                    const SizedBox(width: 32),
-                    _StepperBtn(icon: Icons.add, onTap: () => setState(() => _qty = (_qty + 0.5).clamp(0.5, 999))),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           AppTextField(
             label: 'Catatan',
             hint: 'Opsional',
@@ -528,7 +571,10 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     );
   }
 
-  bool get _canSubmit => _customerId != null && _serviceId != null && _qty > 0;
+  bool get _canSubmit =>
+      _customerId != null &&
+      _items.isNotEmpty &&
+      _items.every((i) => i.qty > 0);
 
   Future<void> _submit() async {
     setState(() => _submitting = true);
@@ -536,7 +582,9 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
       final repo = ref.read(orderRepositoryProvider);
       final order = await repo.create(
         customerId: _customerId!,
-        items: [(serviceId: _serviceId!, qty: _qty)],
+        items: _items
+            .map((i) => (serviceId: i.serviceId, qty: i.qty))
+            .toList(),
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
 
@@ -575,7 +623,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e')));
+        showAppSnackBar(context, 'Gagal: $e', type: AppSnackBarType.error);
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -590,6 +638,124 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
       builder: (_) => const _AddCustomerSheet(),
     );
     if (created != null && mounted) _pickCustomer(created);
+  }
+
+  String _categoryFilterLabel(AsyncValue<List<ServiceCategory>> categoriesAsync, int id) {
+    return categoriesAsync.maybeWhen(
+      data: (cats) => cats.firstWhere((c) => c.id == id, orElse: () => cats.first).name,
+      orElse: () => 'Kategori',
+    );
+  }
+
+  Widget _buildServiceRow(Service s) {
+    final checked = _checkedServiceIds.contains(s.id);
+    final idx = _items.indexWhere((i) => i.serviceId == s.id);
+    final line = idx >= 0 ? _items[idx] : null;
+    final rupiah = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+    return Container(
+      decoration: BoxDecoration(
+        // Checked rows use the primary fill so the user reads the
+        // selection at a glance; unchecked rows sit on white.
+        color: checked ? context.colors.primary : context.colors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(
+          color: checked ? context.colors.primary : context.colors.outlineVariant,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.input),
+          onTap: () => _toggleService(s),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // No leading checkbox icon — selection is conveyed by
+                    // the row's primary fill + bold text. Tapping anywhere
+                    // on the row toggles the selection.
+                    Expanded(
+                      child: Text(
+                        s.name,
+                        style: AppTextStyles.bodyLg.copyWith(
+                          color: checked ? AppColors.onPrimary : context.colors.onSurface,
+                          fontWeight: checked ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${rupiah.format(s.price)} / ${s.unit}',
+                      style: AppTextStyles.labelLg.copyWith(
+                        color: checked ? AppColors.onPrimary : context.colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                // Expanded section only renders for checked rows. Animates
+                // in via AnimatedSize so toggling feels smooth.
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeInOut,
+                  child: line == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Row(
+                            children: [
+                              _MiniStepperBtn(
+                                icon: Icons.remove,
+                                onTap: () => _decrementQty(idx),
+                              ),
+                              const SizedBox(width: 12),
+                              SizedBox(
+                                width: 48,
+                                child: Text(
+                                  line.qty.toStringAsFixed(1),
+                                  textAlign: TextAlign.center,
+                                  style: AppTextStyles.titleLg.copyWith(color: AppColors.onPrimary),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              _MiniStepperBtn(
+                                icon: Icons.add,
+                                onTap: () => _incrementQty(idx),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                line.unit,
+                                style: AppTextStyles.labelLg.copyWith(color: AppColors.onPrimary),
+                              ),
+                              const Spacer(),
+                              Text(
+                                rupiah.format(line.subtotal),
+                                style: AppTextStyles.bodyLg.copyWith(
+                                  color: AppColors.onPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -630,22 +796,26 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
-class _StepperBtn extends StatelessWidget {
-  const _StepperBtn({required this.icon, required this.onTap});
-  final IconData icon; final VoidCallback onTap;
+// Compact 32x32 stepper button used inside each checked service row.
+// White-on-primary tint ensures it reads against the primary-fill
+// selected row background.
+class _MiniStepperBtn extends StatelessWidget {
+  const _MiniStepperBtn({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    // DESIGN.md: 56×56 circle, surface-container-high fill, primary icon.
     return Material(
-      color: context.colors.surfaceContainerHighest,
+      color: AppColors.onPrimary.withValues(alpha: 0.18),
       shape: const CircleBorder(),
       child: InkWell(
-        onTap: onTap,
         customBorder: const CircleBorder(),
+        onTap: onTap,
         child: Container(
-          width: 56, height: 56,
+          width: 32,
+          height: 32,
           alignment: Alignment.center,
-          child: Icon(icon, color: context.colors.primary, size: 24),
+          child: Icon(icon, color: AppColors.onPrimary, size: 18),
         ),
       ),
     );
@@ -819,7 +989,7 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e')));
+        showAppSnackBar(context, 'Gagal: $e', type: AppSnackBarType.error);
       }
     }
   }

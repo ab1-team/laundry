@@ -178,26 +178,44 @@ class OrderSummaryCard extends StatelessWidget {
   }
 }
 
-/// Build the two middle-row segments (qty + service name) used by
-/// both the Daftar Order list and the Dashboard's "Order Terbaru"
+/// Build the middle-row segments (qty + service name, repeated per item)
+/// used by both the Daftar Order list and the Dashboard's "Order Terbaru"
 /// cards. Centralised so the icon mapping stays in one place — a
 /// category icon added to the backend shows up on both surfaces
 /// without extra wiring.
 ///
 /// Returns an empty list when the order has no items, which makes
 /// `OrderSummaryCard` render the 3-line layout (ticket+nama, status,
-/// date+total) instead of crashing on a missing `first`.
-List<OrderSummarySegment> buildOrderSegments(OrderItemLike first) {
-  return [
-    OrderSummarySegment(
-      icon: _weightIcon(first.categoryIcon),
-      label: '${_trimQty(first.qty)} ${first.unit}',
-    ),
-    OrderSummarySegment(
-      icon: _serviceIcon(first.categoryIcon, first.serviceName),
-      label: first.serviceName,
-    ),
-  ];
+/// date+total) instead of crashing.
+///
+/// For multi-item orders ([items].length >= 3) the list is capped at
+/// the first two items plus a trailing "more" segment so the card stays
+/// compact. Set [maxSegments] higher if a denser preview is wanted.
+List<OrderSummarySegment> buildOrderSegments(
+  List<OrderItemLike> items, {
+  int maxSegments = 2,
+}) {
+  if (items.isEmpty) return const [];
+  final out = <OrderSummarySegment>[];
+  final take = items.take(maxSegments);
+  for (final it in take) {
+    out.add(OrderSummarySegment(
+      icon: _weightIcon(it.categoryIcon),
+      label: '${_trimQty(it.qty)} ${it.unit}',
+    ));
+    out.add(OrderSummarySegment(
+      icon: _serviceIcon(it.categoryIcon, it.serviceName),
+      label: it.serviceName,
+    ));
+  }
+  final remaining = items.length - take.length;
+  if (remaining > 0) {
+    out.add(OrderSummarySegment(
+      icon: Icons.more_horiz,
+      label: '+ $remaining layanan lain',
+    ));
+  }
+  return out;
 }
 
 /// Minimal contract for [buildOrderSegments] so callers can pass

@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_ext.dart';
+import '../../../core/widgets/app_snackbar.dart';
 import '../data/admin_providers.dart';
 
 /// Super-Admin → detail tenant + aksi Activate / Suspend.
@@ -132,9 +133,7 @@ class _AdminTenantDetailScreenState extends ConsumerState<AdminTenantDetailScree
     try {
       await ref.read(adminTenantsRepositoryProvider).activate(widget.tenantId);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tenant diaktifkan')),
-      );
+      showAppSnackBar(context, 'Tenant diaktifkan', type: AppSnackBarType.success);
       _reload();
     } on ApiException catch (e) {
       if (!context.mounted) return;
@@ -184,9 +183,7 @@ class _AdminTenantDetailScreenState extends ConsumerState<AdminTenantDetailScree
             reason: reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim(),
           );
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tenant di-suspend')),
-      );
+      showAppSnackBar(context, 'Tenant di-suspend', type: AppSnackBarType.success);
       _reload();
     } on ApiException catch (e) {
       if (!context.mounted) return;
@@ -199,7 +196,7 @@ class _AdminTenantDetailScreenState extends ConsumerState<AdminTenantDetailScree
 }
 
 void _toast(BuildContext context, String msg) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  showAppSnackBar(context, msg, type: AppSnackBarType.error);
 }
 
 class _Header extends StatelessWidget {

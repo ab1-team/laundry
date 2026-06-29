@@ -220,7 +220,7 @@ class DashboardScreen extends ConsumerWidget {
                             // to the dedicated Orders tab. Falls back to
                             // a 3-line layout when the order has no items.
                             final segments = o.items.isNotEmpty
-                                ? buildOrderSegments(o.items.first)
+                                ? buildOrderSegments(o.items, maxSegments: 1)
                                 : const <OrderSummarySegment>[];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),

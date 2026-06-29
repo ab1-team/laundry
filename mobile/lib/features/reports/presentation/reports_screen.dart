@@ -11,6 +11,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_theme_ext.dart';
@@ -185,9 +186,7 @@ class _ExportPillState extends State<_ExportPill> {
       await Printing.layoutPdf(onLayout: (_) async => bytes);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal export: $e')),
-        );
+        showAppSnackBar(context, 'Gagal export: $e', type: AppSnackBarType.error);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
