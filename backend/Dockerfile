@@ -34,22 +34,15 @@ WORKDIR /var/www/html
 # Override php-fpm pool to listen on 0.0.0.0 so nginx (other container) can reach
 COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 
-# Install PHP dependencies (no dev dependencies for production)
-COPY --chown=www-data:www-data composer.json composer.lock ./
-# Retry on transient GitHub zipball flakes; use dist (default) and avoid
-# source fallback to archived repos like php-fig/simple-cache.
-ENV COMPOSER_MAX_RETRIES=5
-RUN composer clear-cache \
- && composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
-
-# Copy application source
-COPY --chown=www-data:www-data . .
-
-# Generate optimized autoloader
-RUN composer dump-autoload --optimize --no-dev
-
-# Set proper permissions
-RUN chown -R www-data:www-data /var/www/html
+# Image ini HANYA runtime. Tidak ada source code, tidak ada .env.
+# Semua di-mount dari host lewat docker-compose.yml:
+#   - ./  → /var/www/html        (source code)
+#   - ./.env → /var/www/html/.env (konfigurasi runtime)
+# Container cuma PHP-FPM process; data hidup di host filesystem.
+#
+# Composer install tidak dilakukan di sini — vendor/ di-generate di
+# host saat pertama kali `composer install`, lalu folder vendor/
+# di-bind-mount juga. Atau jalankan di runtime via entrypoint.
 
 USER www-data
 

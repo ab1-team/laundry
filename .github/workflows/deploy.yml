@@ -65,6 +65,11 @@ jobs:
             # Generate APP_KEY kalau masih kosong (deploy pertama).
             # env_file di docker-compose sudah mount .env ke container,
             # jadi key yang di-generate persistent di host file.
+            #
+            # Wajib di-clear config cache sebelum migrate / key:generate
+            # supaya perubahan env terbaca. Tanpa clear, Laravel pakai
+            # cache lama → APP_KEY tetap dianggap kosong walau sudah di-set.
+            docker compose exec -T app php artisan config:clear || true
             CURRENT_KEY=$(grep '^APP_KEY=' .env | cut -d= -f2-)
             if [ -z "$CURRENT_KEY" ]; then
               echo "APP_KEY kosong — generate..."

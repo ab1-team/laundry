@@ -1,6 +1,6 @@
-# File yang TIDAK boleh masuk ke Docker image. Image harus runtime-only;
-# semua konfigurasi sensitif (APP_KEY, DB_PASSWORD) di-mount dari host
-# via `env_file` di docker-compose.yml.
+# File yang TIDAK boleh masuk ke Docker image.
+# Image harus runtime-only; semua konfigurasi sensitif (APP_KEY,
+# DB_PASSWORD) di-mount dari host via `env_file` di docker-compose.yml.
 .env
 .env.*
 !.env.example
@@ -14,5 +14,11 @@ node_modules
 public/storage
 storage/*.key
 storage/pail
+storage/logs
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+storage/app/public
 tests
 **/*.log
+docker-compose.override.yml
