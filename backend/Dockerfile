@@ -50,7 +50,7 @@ ENV COMPOSER_MAX_RETRIES=2
 ENV COMPOSER_MAX_RETRIES=2
 ENV COMPOSER_DISABLE_TLS=false
 
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --prefer-stable --no-interaction --no-progress
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --no-progress
 
 # Copy application source. .env di-exclude lewat .dockerignore.
 COPY --chown=www-data:www-data . .
