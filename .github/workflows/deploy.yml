@@ -25,29 +25,12 @@ jobs:
 
             git pull origin main
 
-            # Preserve .env across deploys. File di-.gitignore sehingga
-            # git pull tidak menimpanya — tapi kalau hilang, generate
-            # ulang dari .env.example.
-            if [ ! -f .env ]; then
-              if [ -f .env.example ]; then
-                echo "Membuat .env dari .env.example..."
-                cp .env.example .env
-              else
-                echo "::error::.env.example tidak ada — tidak bisa bootstrap .env."
-                exit 1
-              fi
-            fi
-
-            # chown ke www-data (uid:gid 33:33 di php:8.4-fpm-alpine) +
-            # chmod 0666 supaya container bisa tulis ke .env via bind-mount.
-            # chmod saja tidak cukup — owner file bisa root (dari cp di atas
-            # atau git pull) sehingga www-data bukan owner DAN bukan group,
-            # jadi tulis ditolak walau mode 0666. chown memastikan owner
-            # match container user. Butuh sudo karena (a) chown butuh owner
-            # match / root, dan (b) chmod juga butuh owner / root setelah
-            # chown membuat file bukan milik user SSH lagi. 1x sudo sudah
-            # cover keduanya — tidak perlu chmod terpisah setelahnya.
-            sudo chown 33:33 .env && sudo chmod 0666 .env
+            # .env di-manage di dalam container oleh docker/entrypoint.sh
+            # — copy dari .env.example, chown www-data. Tidak perlu
+            # bootstrap atau chown/chmod di host lagi. Sebelumnya workflow
+            # bind-mount .env dari host ke container tapi menyebabkan
+            # "Permission denied" / "Operation not permitted" di artisan
+            # key:generate karena owner host ≠ container user.
 
             # Build image. Tanpa --no-cache supaya Docker pakai layer cache
             # dari build sebelumnya — second build hanya ~30 detik karena
@@ -69,9 +52,12 @@ jobs:
               sleep 2
             done
 
-            # Generate APP_KEY kalau masih kosong (deploy pertama).
-            # .env di-bind-mount dari host, jadi key:generate bisa tulis
-            # ke host file dan persistent.
+            # Generate APP_KEY kalau masih kosong. Cek dari host .env
+            # (env_file inject host file sebagai env vars container —
+            # sama isinya dengan .env di dalam container). Kalau host
+            # .env ada, key di sana sudah persistent dan key:generate
+            # di container akan overwrite sama nilainya — skip kalau
+            # sudah ada.
             CURRENT_KEY=$(grep '^APP_KEY=' .env | cut -d= -f2-)
             if [ -z "$CURRENT_KEY" ]; then
               echo "APP_KEY kosong — generate..."

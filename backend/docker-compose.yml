@@ -25,10 +25,18 @@ services:
     env_file:
       - .env
     volumes:
-      # Bind-mount .env ke container supaya artisan command (key:generate,
-      # migrate, dll) bisa baca/tulis file .env dari container.
-      # Image tidak punya .env (di-exclude dari build context).
-      - ./.env:/var/www/html/.env
+      # .env TIDAK di-bind-mount dari host. Container manage .env
+      # sendiri via docker/entrypoint.sh (copy dari .env.example, chown
+      # www-data). Sebelumnya di-mount dari host tapi menyebabkan
+      # "Operation not permitted" di artisan key:generate — owner file
+      # di host (root atau user SSH) tidak match container user www-data,
+      # dan permission bits di host tidak selalu propagate benar ke
+      # bind-mount.
+      #
+      # env_file di section env tetap inject host .env sebagai env vars
+      # ke process container (DB_HOST, APP_KEY, dll) — orthogonal dengan
+      # filesystem .env di container.
+      #
       # Persist uploaded APK di luar container — kalau image di-rebuild,
       # file upload user tetap ada di host.
       - ./storage/app:/var/www/html/storage/app

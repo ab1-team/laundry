@@ -61,7 +61,16 @@ RUN composer dump-autoload --optimize --no-dev --no-scripts
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html
 
-USER www-data
+# Entrypoint untuk inisialisasi .env. Run sebagai root supaya bisa
+# chown .env ke www-data setelah copy dari .env.example — masalah
+# "Operation not permitted" saat bind-mount host .env ke container
+# hilang sepenuhnya. Container jadi self-contained: .env di-manage
+# sendiri dari .env.example yang ada di image. "exec" di akhir drop
+# privilege ke www-data sehingga php-fpm jadi PID 1 di user benar.
+COPY --chown=root:root docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+USER root
+CMD ["entrypoint.sh", "php-fpm"]
 
 EXPOSE 9000
-CMD ["php-fpm"]
