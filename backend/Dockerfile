@@ -34,6 +34,14 @@ WORKDIR /var/www/html
 # Override php-fpm pool to listen on 0.0.0.0 so nginx (other container) can reach
 COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 
+# Paksa PHP populate $_ENV superglobal dari process environment
+# variables. Default php-fpm variables_order = "GPCS" (no E) membuat
+# $_ENV kosong — Laravel env() helper baca $_ENV first, jadi env_file
+# di docker-compose (inject DB_HOST, APP_KEY, dll) tidak terbaca.
+# Override variables_order ke "EGPCS" supaya $_ENV populated dan
+# Laravel dotenv + env() helper lihat process env vars.
+RUN echo "variables_order = \"EGPCS\"" > /usr/local/etc/php/conf.d/zz-dotenv.ini
+
 # Install PHP dependencies (production: no dev). composer.lock pinning
 # supaya build reproducible — versi dependency selalu sama persis.
 COPY --chown=www-data:www-data composer.json composer.lock ./
