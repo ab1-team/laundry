@@ -9,8 +9,13 @@ class CustomerRepository {
     final res = await _api.dio.get('/customers', queryParameters: {
       if (search?.isNotEmpty == true) 'search': search,
     });
-    final data = (res.data as Map)['data'] as List;
-    return data.cast<Map<String, dynamic>>().map(Customer.fromJson).toList();
+    final body = res.data;
+    final data = body is Map ? body['data'] : null;
+    if (data is! List) return const [];
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(Customer.fromJson)
+        .toList();
   }
 
   Future<Customer> create({
@@ -25,7 +30,13 @@ class CustomerRepository {
       'address': address,
       'notes': notes,
     });
-    return Customer.fromJson(((res.data as Map)['data'] as Map<String, dynamic>));
+    final body = res.data;
+    if (body is! Map || body['data'] is! Map<String, dynamic>) {
+      // API balikin error (422 validasi / 500) — `data` field gak ada atau bukan Map.
+      final msg = body is Map ? body['message']?.toString() : null;
+      throw Exception(msg ?? 'Response server tidak valid (bukan Map)');
+    }
+    return Customer.fromJson(body['data'] as Map<String, dynamic>);
   }
 
   Future<void> delete(int id) async {

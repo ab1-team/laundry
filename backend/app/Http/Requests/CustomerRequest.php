@@ -23,6 +23,7 @@ class CustomerRequest extends FormRequest
             'phone'   => [
                 'nullable',
                 'string',
+                'min:8',
                 'max:20',
                 Rule::unique('customers', 'phone')
                     ->where('tenant_id', $tenantId)
@@ -37,6 +38,8 @@ class CustomerRequest extends FormRequest
     {
         return [
             'name.required'  => 'Nama customer wajib diisi',
+            'phone.min'      => 'Nomor HP minimal 8 digit (contoh: 6281234567890)',
+            'phone.max'      => 'Nomor HP maksimal 20 digit',
             'phone.unique'   => 'Nomor telepon sudah terdaftar di tenant ini',
         ];
     }

@@ -1,3 +1,5 @@
+import 'package:pub_semver/pub_semver.dart';
+
 /// Response shape dari GET /api/v1/app/version.
 ///
 /// `latest_version` & `min_version` diparse ke [Version] sebelum dipakai
@@ -23,7 +25,7 @@ class AppVersionInfo {
       minVersion: Version.parse((json['min_version'] as String?) ?? '0.0.0'),
       apkUrl: json['apk_url'] as String,
       forceUpdate: json['force_update'] as bool? ?? false,
-      changangelog: (json['changelog'] as String?) ?? '',
+      changelog: (json['changelog'] as String?) ?? '',
     );
   }
 }
