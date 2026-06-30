@@ -25,12 +25,29 @@ jobs:
 
             git pull origin main
 
-            # .env di-manage di dalam container oleh docker/entrypoint.sh
-            # — copy dari .env.example, chown www-data. Tidak perlu
-            # bootstrap atau chown/chmod di host lagi. Sebelumnya workflow
-            # bind-mount .env dari host ke container tapi menyebabkan
-            # "Permission denied" / "Operation not permitted" di artisan
-            # key:generate karena owner host ≠ container user.
+            # Pastikan .env exist. File di-.gitignore sehingga git pull
+            # tidak menyentuh — bootstrap dari .env.example kalau hilang.
+            if [ ! -f .env ]; then
+              if [ -f .env.example ]; then
+                echo "Membuat .env dari .env.example..."
+                cp .env.example .env
+              else
+                echo "::error::.env.example tidak ada — tidak bisa bootstrap .env."
+                exit 1
+              fi
+            fi
+
+            # Pre-chown .env ke www-data (uid 33 di php:8.4-fpm-alpine)
+            # supaya container bisa tulis ke .env via bind-mount.
+            # docker/entrypoint.sh juga chown di dalam container tapi
+            # chown hanya affect owner di host view, tidak affect view
+            # dari bind-mount kalau file di-mount dengan metadata cache.
+            # Pre-chown di host memastikan container lihat owner yang
+            # benar saat mount. sudo karena user SSH bukan owner file
+            # (biasanya root dari cp / git pull).
+            if [ -f .env ]; then
+              sudo chown 33:33 .env
+            fi
 
             # Build image. Tanpa --no-cache supaya Docker pakai layer cache
             # dari build sebelumnya — second build hanya ~30 detik karena
@@ -52,16 +69,26 @@ jobs:
               sleep 2
             done
 
-            # Generate APP_KEY kalau masih kosong. Cek dari host .env
-            # (env_file inject host file sebagai env vars container —
-            # sama isinya dengan .env di dalam container). Kalau host
-            # .env ada, key di sana sudah persistent dan key:generate
-            # di container akan overwrite sama nilainya — skip kalau
-            # sudah ada.
+            # Generate APP_KEY kalau masih kosong. Cek host .env — kalau
+            # sudah ada (deploy setelah first run), skip. Kalau kosong,
+            # generate di dalam container, lalu SYNC balik ke host .env
+            # supaya persistent untuk deploy berikutnya. Tanpa sync,
+            # key regenerate tiap deploy → semua encrypted session invalid.
             CURRENT_KEY=$(grep '^APP_KEY=' .env | cut -d= -f2-)
             if [ -z "$CURRENT_KEY" ]; then
               echo "APP_KEY kosong — generate..."
               docker compose exec -T app php artisan key:generate --force
+              # Pull key yang baru di-generate dari container .env dan
+              # replace line APP_KEY= di host .env. Karena bind-mount
+              # host→container share file yang sama, key SUDAH di host
+              # file — tapi host .env mungkin sudah punya line APP_KEY=
+              # kosong yang perlu di-overwrite. Gunakan sed untuk
+              # replace in-place.
+              NEW_KEY=$(docker compose exec -T app grep '^APP_KEY=' .env | cut -d= -f2-)
+              if [ -n "$NEW_KEY" ]; then
+                sed -i "s|^APP_KEY=.*|APP_KEY=${NEW_KEY}|" .env
+                echo "APP_KEY disync ke host .env."
+              fi
             fi
 
             # Run migrations SEBELUM cache:clear — kalau driver cache/session

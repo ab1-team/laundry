@@ -25,18 +25,14 @@ services:
     env_file:
       - .env
     volumes:
-      # .env TIDAK di-bind-mount dari host. Container manage .env
-      # sendiri via docker/entrypoint.sh (copy dari .env.example, chown
-      # www-data). Sebelumnya di-mount dari host tapi menyebabkan
-      # "Operation not permitted" di artisan key:generate — owner file
-      # di host (root atau user SSH) tidak match container user www-data,
-      # dan permission bits di host tidak selalu propagate benar ke
-      # bind-mount.
+      # Bind-mount .env dari host supaya config customized (DB_HOST,
+      # DB_PASSWORD, dll) terbaca langsung oleh Laravel. Container juga
+      # bisa tulis ke .env via key:generate, hasilnya persistent di host.
       #
-      # env_file di section env tetap inject host .env sebagai env vars
-      # ke process container (DB_HOST, APP_KEY, dll) — orthogonal dengan
-      # filesystem .env di container.
-      #
+      # entrypoint.sh chmod/chown ke www-data supaya php-fpm worker
+      # bisa tulis. Workflow deploy.yml handle pre-chown di host via
+      # sudo karena file mungkin owner=root setelah git pull / copy.
+      - ./.env:/var/www/html/.env
       # Persist uploaded APK di luar container — kalau image di-rebuild,
       # file upload user tetap ada di host.
       - ./storage/app:/var/www/html/storage/app
