@@ -89,6 +89,13 @@ jobs:
                 sed -i "s|^APP_KEY=.*|APP_KEY=${NEW_KEY}|" .env
                 echo "APP_KEY disync ke host .env."
               fi
+              # Force-clear compiled config & view cache sehingga
+              # APP_KEY baru di-load fresh, bukan dari cache lama yang
+              # masih punya APP_KEY="" (string kosong). Tanpa clear
+              # ini, "MissingAppKeyException" bisa muncul walau .env
+              # sudah punya key — config cache hold empty string.
+              docker compose exec -T app php artisan config:clear || true
+              docker compose exec -T app php artisan cache:clear || true
             fi
 
             # Run migrations SEBELUM cache:clear — kalau driver cache/session
