@@ -40,15 +40,23 @@ class ServiceController extends Controller
         // Join category table because sort_order lives there. Then order
         // by category_id so services inside the same category stick
         // together, and finally by name for a deterministic tie-breaker.
+        // Halaman Master + Buat Order butuh semua layanan — tidak
+        // ada use case pagination di sisi operator. Tenant laundry
+        // biasanya punya <50 layanan; kalau lebih, tetap dikirim full
+        // supaya form Order tidak kehilangan layanan saat scroll.
+        // Mobile: servicesProvider (autoDispose) cache list in-memory.
         $services = $query
             ->join('service_categories', 'services.category_id', '=', 'service_categories.id')
             ->orderBy('service_categories.sort_order')
             ->orderBy('services.category_id')
             ->orderBy('services.name')
             ->select('services.*')
-            ->paginate(20);
+            ->get();
 
-        return ApiResponse::paginated($services, ServiceResource::class);
+        return ApiResponse::success(
+            ServiceResource::collection($services),
+            'Success'
+        );
     }
 
     /**

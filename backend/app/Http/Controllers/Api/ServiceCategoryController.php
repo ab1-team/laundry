@@ -24,9 +24,15 @@ class ServiceCategoryController extends Controller
             $query->where('is_active', true);
         }
 
-        $categories = $query->orderBy('sort_order')->orderBy('name')->paginate(20);
+        // Tanpa pagination — halaman Master + Buat Order butuh semua
+        // kategori. Backend hanya return is_active=true by default
+        // kecuali caller pass active_only=false.
+        $categories = $query->orderBy('sort_order')->orderBy('name')->get();
 
-        return ApiResponse::paginated($categories, ServiceCategoryResource::class);
+        return ApiResponse::success(
+            ServiceCategoryResource::collection($categories),
+            'Success'
+        );
     }
 
     /**
