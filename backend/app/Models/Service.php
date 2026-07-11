@@ -13,6 +13,7 @@ class Service extends Model
     protected $fillable = [
         'tenant_id',
         'category_id',
+        'icon_id',
         'name',
         'price',
         'unit',
@@ -34,5 +35,10 @@ class Service extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(ServiceCategory::class, 'category_id');
+    }
+
+    public function icon(): BelongsTo
+    {
+        return $this->belongsTo(Icon::class, 'icon_id');
     }
 }

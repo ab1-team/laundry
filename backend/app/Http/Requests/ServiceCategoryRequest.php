@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ServiceCategoryRequest extends FormRequest
 {
@@ -25,7 +26,9 @@ class ServiceCategoryRequest extends FormRequest
 
         return [
             'name'       => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:100'],
-            'icon'       => ['nullable', 'string', 'max:100'],
+            // FK ke tabel icons. NullOnDelete di migration: kalau icon
+            // dihapus, kategori.icon_id otomatis jadi null.
+            'icon_id'    => ['nullable', 'integer', Rule::exists('icons', 'id')->where('tenant_id', $this->user()->tenant_id ?? 0)],
             'sort_order' => ['integer'],
             'is_active'  => ['boolean'],
         ];

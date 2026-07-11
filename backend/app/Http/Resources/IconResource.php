@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class ServiceCategoryResource extends JsonResource
+class IconResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
@@ -13,13 +13,12 @@ class ServiceCategoryResource extends JsonResource
             'id'         => $this->id,
             'tenant_id'  => $this->tenant_id,
             'name'       => $this->name,
-            // FK ke icon — null jika admin belum set atau icon dihapus.
-            // whenLoaded agar tidak N+1 kalau controller lupa eager-load.
-            'icon_id'    => $this->icon_id,
-            'icon'       => $this->whenLoaded('icon', fn () => new IconResource($this->icon)),
-            'sort_order' => $this->sort_order,
+            'icon_path'  => $this->icon_path,
+            // Relative URL — frontend concatenate dengan API host origin
+            // (resolveAssetUrl di mobile/lib/core/network/asset_url.dart).
+            // Pola sama dengan TenantResource::logo_url.
+            'icon_url'   => $this->icon_url,
             'is_active'  => $this->is_active,
-            'services_count' => $this->whenCounted('services'),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

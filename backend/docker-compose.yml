@@ -47,6 +47,18 @@ services:
       - "8006:80"
     depends_on:
       - app
+    # Bind-mount public/ dari host supaya symlink `public/storage` yang
+    # dibuat oleh `php artisan storage:link` (di container app) terbaca
+    # oleh nginx. Tanpa ini, image nginx cuma punya public/ statis saat
+    # build dan symlink storage hilang, jadi request ke /storage/* return
+    # 403 karena nginx tidak bisa resolve symlink.
+    #
+    # storage/app/public juga di-mount karena symlink public/storage
+    # mengarah ke /var/www/html/storage/app/public — path itu harus ada
+    # di filesystem nginx container untuk resolve ke file aslinya.
+    volumes:
+      - ./public:/var/www/html/public
+      - ./storage/app/public:/var/www/html/storage/app/public
     networks:
       - laundry-net
       - web-network
@@ -56,7 +68,10 @@ services:
     container_name: laundry-mysql
     restart: unless-stopped
     ports:
-      - "3307:3306"
+      # Port host 3308 (bukan 3307) untuk hindari konflik dengan
+      # mysql:8.0 container project lain (enmarket-db) yang masih jalan.
+      # Port container tetap 3306 — app talk ke "mysql:3306" via network.
+      - "3308:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-secret}
       MYSQL_DATABASE: ${DB_DATABASE:-laundry}

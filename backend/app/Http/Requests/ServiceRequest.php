@@ -30,6 +30,12 @@ class ServiceRequest extends FormRequest
                 'integer',
                 Rule::exists('service_categories', 'id')->where('tenant_id', $this->user()->tenant_id ?? 0),
             ],
+            // FK ke icons — opsional, nullOnDelete: kalau icon dihapus
+            // services.icon_id jadi null (tapi service tetap ada).
+            'icon_id'        => [
+                'nullable', 'integer',
+                Rule::exists('icons', 'id')->where('tenant_id', $this->user()->tenant_id ?? 0),
+            ],
             'name'           => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:150'],
             'price'          => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
             'unit'           => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:30'],

@@ -16,7 +16,9 @@ class ServiceCategoryController extends Controller
      */
     public function index(Request $request)
     {
-        $query = ServiceCategory::query()->withCount('services');
+        $query = ServiceCategory::query()
+            ->with('icon:id,tenant_id,name,icon_path,is_active')
+            ->withCount('services');
 
         if ($request->boolean('active_only')) {
             $query->where('is_active', true);
@@ -35,7 +37,7 @@ class ServiceCategoryController extends Controller
         $category = ServiceCategory::create($request->validated());
 
         return ApiResponse::success(
-            new ServiceCategoryResource($category),
+            new ServiceCategoryResource($category->load('icon:id,name,icon_path')),
             'Kategori berhasil dibuat',
             201
         );
@@ -47,7 +49,9 @@ class ServiceCategoryController extends Controller
     public function show(ServiceCategory $serviceCategory)
     {
         return ApiResponse::success(
-            new ServiceCategoryResource($serviceCategory->loadCount('services'))
+            new ServiceCategoryResource(
+                $serviceCategory->load(['icon:id,name,icon_path'])->loadCount('services')
+            )
         );
     }
 
@@ -59,7 +63,7 @@ class ServiceCategoryController extends Controller
         $serviceCategory->update($request->validated());
 
         return ApiResponse::success(
-            new ServiceCategoryResource($serviceCategory),
+            new ServiceCategoryResource($serviceCategory->load('icon:id,name,icon_path')),
             'Kategori berhasil diupdate'
         );
     }

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\TenantController;
 use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\IconController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ReportController;
@@ -65,6 +66,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('master')->group(function () {
             Route::apiResource('service-categories', ServiceCategoryController::class);
             Route::apiResource('services',           ServiceController::class);
+            Route::apiResource('icons',              IconController::class);
         });
 
         // =====================

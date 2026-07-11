@@ -16,7 +16,9 @@ class ServiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Service::query()->with('category:id,name,icon,sort_order');
+        $query = Service::query()
+            ->with('category:id,name,icon_id,sort_order')
+            ->with('icon:id,tenant_id,name,icon_path,is_active');
 
         // Filter by category
         if ($categoryId = $request->query('category_id')) {
@@ -57,7 +59,9 @@ class ServiceController extends Controller
         $service = Service::create($request->validated());
 
         return ApiResponse::success(
-            new ServiceResource($service->load('category:id,name,icon')),
+            new ServiceResource(
+                $service->load(['category:id,name,icon_id,sort_order', 'icon:id,tenant_id,name,icon_path,is_active'])
+            ),
             'Layanan berhasil dibuat',
             201
         );
@@ -69,7 +73,9 @@ class ServiceController extends Controller
     public function show(Service $service)
     {
         return ApiResponse::success(
-            new ServiceResource($service->load('category:id,name,icon'))
+            new ServiceResource(
+                $service->load(['category:id,name,icon_id,sort_order', 'icon:id,tenant_id,name,icon_path,is_active'])
+            )
         );
     }
 
@@ -81,7 +87,9 @@ class ServiceController extends Controller
         $service->update($request->validated());
 
         return ApiResponse::success(
-            new ServiceResource($service->load('category:id,name,icon')),
+            new ServiceResource(
+                $service->load(['category:id,name,icon_id,sort_order', 'icon:id,tenant_id,name,icon_path,is_active'])
+            ),
             'Layanan berhasil diupdate'
         );
     }

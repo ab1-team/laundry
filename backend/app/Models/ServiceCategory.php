@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ServiceCategory extends Model
@@ -13,7 +14,7 @@ class ServiceCategory extends Model
     protected $fillable = [
         'tenant_id',
         'name',
-        'icon',
+        'icon_id',
         'sort_order',
         'is_active',
     ];
@@ -31,5 +32,10 @@ class ServiceCategory extends Model
     public function services(): HasMany
     {
         return $this->hasMany(Service::class, 'category_id');
+    }
+
+    public function icon(): BelongsTo
+    {
+        return $this->belongsTo(Icon::class, 'icon_id');
     }
 }
