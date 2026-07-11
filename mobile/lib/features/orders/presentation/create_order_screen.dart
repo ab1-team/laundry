@@ -39,14 +39,14 @@ class _LineItem {
     required this.categoryId,
     required this.name,
     required this.unit,
-    required this.categoryIcon,
+    required this.categoryIconUrl,
     required this.price,
   }) : qty = 1;
   final int serviceId;
   final int categoryId;
   final String name;
   final String unit;
-  final String? categoryIcon;
+  final String? categoryIconUrl;
   final double price;
   // Mutable: stepper buttons mutate `qty` directly on the line.
   // ignore: prefer_final_fields
@@ -71,6 +71,12 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   // DP amount (uang muka). Only used when _payment == 'dp'. Edited via
   // the inline input that appears under the segmented control.
   final _dpCtrl = TextEditingController();
+  // In-memory search filter for the Layanan list. Filters by service
+  // name (case-insensitive contains). Combines with _categoryFilterId
+  // (both must match). No debounce — the dataset is small and the
+  // filter runs synchronously against the cached servicesProvider.
+  final _serviceSearchCtrl = TextEditingController();
+  String _serviceSearch = '';
   bool _submitting = false;
 
   @override
@@ -78,6 +84,12 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     super.initState();
     // Rebuild the "sisa" hint under the DP field as the operator types.
     _dpCtrl.addListener(() => setState(() {}));
+    // Rebuild the Layanan list as the operator types in the search box.
+    _serviceSearchCtrl.addListener(() {
+      if (_serviceSearch != _serviceSearchCtrl.text) {
+        setState(() => _serviceSearch = _serviceSearchCtrl.text);
+      }
+    });
   }
 
   // Customer search — debounced query against /customers?search=.
@@ -114,7 +126,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
           categoryId: service.categoryId,
           name: service.name,
           unit: service.unit,
-          categoryIcon: service.categoryIcon,
+          categoryIconUrl: service.effectiveIconUrl,
           price: service.price,
         ));
         _checkedServiceIds.add(service.id);
@@ -228,6 +240,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     _notesCtrl.dispose();
     _dpCtrl.dispose();
     _searchCtrl.dispose();
+    _serviceSearchCtrl.dispose();
     _searchDebounce?.cancel();
     super.dispose();
   }
@@ -356,6 +369,18 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
           const SizedBox(height: 20),
           Text('Layanan', style: AppTextStyles.titleLg.copyWith(color: context.colors.primary)),
           const SizedBox(height: 8),
+          // Search box for filtering services by name. In-memory only
+          // — combines with the category chip filter below (both must
+          // match). Empty input shows the full list (subject to the
+          // category filter alone).
+          AppTextField(
+            label: '',
+            hint: 'Cari layanan...',
+            prefixIcon: Icons.search,
+            variant: AppTextFieldVariant.search,
+            controller: _serviceSearchCtrl,
+          ),
+          const SizedBox(height: 12),
           // Category filter row. "Semua" pill = null filter (show every
           // category's services, grouped). Tapping a category pill filters
           // the visible services to that one category only. Multi-select on
@@ -404,9 +429,27 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
               }
               // Group by categoryId; preserve category order via Map iteration
               // (insertion order) so the list mirrors the filter pills above.
-              final filtered = _categoryFilterId == null
-                  ? all
-                  : all.where((s) => s.categoryId == _categoryFilterId).toList();
+              // Apply category filter first, then name search (both must match).
+              final q = _serviceSearch.trim().toLowerCase();
+              final filtered = all.where((s) {
+                if (_categoryFilterId != null && s.categoryId != _categoryFilterId) return false;
+                if (q.isNotEmpty && !s.name.toLowerCase().contains(q)) return false;
+                return true;
+              }).toList();
+              // Empty-state for "no rows match the current filter combo".
+              // Distinguishes "no services defined" (handled above) from
+              // "services exist but filter narrows to none" — so the user
+              // knows to clear the search/category instead of creating a
+              // new service.
+              if (filtered.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'Tidak ada layanan yang cocok dengan pencarian.',
+                    style: AppTextStyles.bodyMd.copyWith(color: context.colors.onSurfaceVariant),
+                  ),
+                );
+              }
               final groups = <int, List<Service>>{};
               for (final s in filtered) {
                 groups.putIfAbsent(s.categoryId, () => <Service>[]).add(s);
@@ -452,17 +495,29 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                         if (_categoryFilterId == null)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-                            child: Text(
-                              // Local label fallback — the service model exposes
-                              // categoryName only when joined server-side; for the
-                              // standalone master load we fall back to the
-                              // category filter chip the user is currently inside.
-                              // In practice backend joins always populate this.
-                              entry.value.first.categoryName ?? _categoryFilterLabel(categoriesAsync, entry.key),
-                              style: AppTextStyles.labelSm.copyWith(
-                                color: context.colors.outline,
-                                letterSpacing: 1.5,
-                              ),
+                            child: Row(
+                              children: [
+                                _OrderCategoryIcon(
+                                  // Prefer service.icon (override) kalau
+                                  // ada; kalau tidak, ambil icon kategori
+                                  // lewat catsById lookup di bawah.
+                                  iconUrl: entry.value.first.effectiveIconUrl,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  // Local label fallback — the service model exposes
+                                  // categoryName only when joined server-side; for the
+                                  // standalone master load we fall back to the
+                                  // category filter chip the user is currently inside.
+                                  // In practice backend joins always populate this.
+                                  entry.value.first.categoryName ?? _categoryFilterLabel(categoriesAsync, entry.key),
+                                  style: AppTextStyles.labelSm.copyWith(
+                                    color: context.colors.outline,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         for (final s in entry.value)
@@ -684,6 +739,17 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
               children: [
                 Row(
                   children: [
+                    // Thumbnail icon — kalau service ada icon, tampil
+                    // sebagai image 28x28 rounded. Fallback ke icon
+                    // kategori via effectiveIconUrl atau placeholder
+                    // laundry icon.
+                    _OrderCategoryIcon(
+                      iconUrl: s.effectiveIconUrl,
+                      size: 28,
+                      rounded: true,
+                      onPrimary: checked,
+                    ),
+                    const SizedBox(width: 10),
                     // No leading checkbox icon — selection is conveyed by
                     // the row's primary fill + bold text. Tapping anywhere
                     // on the row toggles the selection.
@@ -1072,6 +1138,68 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Compact icon thumbnail untuk daftar Layanan. Render gambar dari
+/// icon_url kalau ada; fallback ke Material icon kalau URL null/kosong/
+/// gagal load. Saat [onPrimary] true (service row yang dipilih),
+/// background & fallback tint di-adjust supaya tetap kebaca di atas
+/// primary fill.
+class _OrderCategoryIcon extends StatelessWidget {
+  const _OrderCategoryIcon({
+    required this.iconUrl,
+    this.size = 24,
+    this.rounded = false,
+    this.onPrimary = false,
+  });
+
+  final String? iconUrl;
+  final double size;
+  final bool rounded;
+  final bool onPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = iconUrl != null && iconUrl!.isNotEmpty;
+    final bg = onPrimary
+        ? AppColors.onPrimary.withValues(alpha: 0.18)
+        : AppColors.secondaryContainer;
+    final fallbackIcon = onPrimary
+        ? AppColors.onPrimary
+        : AppColors.secondary;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(rounded ? size / 4 : size / 2),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: hasImage
+          ? Image.network(
+              iconUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Icon(
+                Icons.local_laundry_service_outlined,
+                size: size * 0.55,
+                color: fallbackIcon,
+              ),
+              loadingBuilder: (ctx, child, prog) => prog == null
+                  ? child
+                  : const Center(
+                      child: SizedBox(
+                        width: 12, height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+            )
+          : Icon(
+              Icons.local_laundry_service_outlined,
+              size: size * 0.55,
+              color: fallbackIcon,
+            ),
     );
   }
 }
