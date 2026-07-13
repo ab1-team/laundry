@@ -36,6 +36,44 @@
             color: #fff;
             padding: 24px 0;
             flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-toggle {
+            display: none;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+        }
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 9;
+        }
+        .sidebar-backdrop.open { display: block; }
+        @media (max-width: 768px) {
+            .sidebar-toggle { display: inline-block; }
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                z-index: 10;
+                transform: translateX(-100%);
+                transition: transform 0.2s ease;
+                box-shadow: 4px 0 12px rgba(0,0,0,0.15);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .main { padding: 16px; }
+            .topbar { flex-wrap: wrap; gap: 12px; }
         }
         .sidebar h1 {
             font-size: 18px;
@@ -60,7 +98,7 @@
             border-left-color: #fff;
             color: #fff;
         }
-        .main { flex: 1; padding: 32px; max-width: 1100px; }
+        .main { flex: 1; padding: 32px; max-width: 1200px; width: 100%; }
         .topbar {
             display: flex;
             justify-content: space-between;
@@ -158,10 +196,60 @@
         code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
         .muted { color: var(--muted); font-size: 13px; }
         .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+
+        /* Pagination — Laravel default pakai <nav> + Tailwind utility, kita override ke theme admin. */
+        nav[role="navigation"] { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+        nav[role="navigation"] > div:first-child,
+        nav[role="navigation"] > div:last-child { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        nav[role="navigation"] a, nav[role="navigation"] span {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+        }
+        nav[role="navigation"] a:hover { background: #f9fafb; }
+        nav[role="navigation"] span[aria-current="page"] span,
+        nav[role="navigation"] span[aria-current="page"] {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        nav[role="navigation"] span[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+
+        /* File input wrapper — sembunyikan native, tampilkan button tema. */
+        .file-input-wrap { position: relative; display: inline-block; }
+        .file-input-wrap input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .file-input-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            background: #f9fafb;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .file-input-wrap:hover .file-input-label { background: #f3f4f6; border-color: var(--primary); }
+        .file-input-name { font-size: 12px; color: var(--muted); margin-left: 8px; }
     </style>
 </head>
 <body>
     <div class="layout">
+        <div class="sidebar-backdrop" onclick="document.querySelector('.sidebar').classList.remove('open');this.classList.remove('open');"></div>
         <aside class="sidebar">
             <h1>LaundryAja Admin</h1>
             <nav>
@@ -175,7 +263,10 @@
         </aside>
         <main class="main">
             <div class="topbar">
-                <h2>@yield('heading', 'Dashboard')</h2>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button type="button" class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open');document.querySelector('.sidebar-backdrop').classList.toggle('open');" aria-label="Toggle menu">☰</button>
+                    <h2>@yield('heading', 'Dashboard')</h2>
+                </div>
                 <div class="user">
                     Login sebagai <strong>{{ auth()->user()->name }}</strong>
                     <form method="POST" action="{{ route('admin.logout') }}">
