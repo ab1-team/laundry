@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:install_plugin/install_plugin.dart';
 
+import '../router/app_router.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_text_styles.dart';
@@ -62,17 +63,21 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   }
 
   Future<void> _showUpdateSheet(AppVersionInfo info, bool mandatory) async {
+    // UpdateGate di-mount via `builder` callback MaterialApp.router.
+    // Navigator.of(context) gagal di sana karena Navigator di-abstract
+    // ke Router API — context builder tidak punya Navigator ancestor.
+    //
+    // Solusi: pakai AppRouter.rootKey (GlobalKey yang di-share dengan
+    // GoRouter(navigatorKey:)) → currentContext = context dari root
+    // Navigator, descendants Navigator tersedia untuk push modal.
+    final navCtx = AppRouter.rootKey.currentContext;
+    if (navCtx == null) {
+      // Router belum siap (cold start) → skip sheet, next attempt akan
+      // retry saat user trigger lagi.
+      return;
+    }
     final dismissed = await showModalBottomSheet<bool>(
-      context: context,
-      // UpdateGate dipasang via `builder` callback MaterialApp.router,
-      // sehingga `context` miliknya ada di atas Navigator child router
-      // (GoRouter Navigator). Default `useRootNavigator: false` cari
-      // Navigator terdekat di atas context — Navigator child router
-      // ada di sub-tree, bukan ancestor → crash 'context that does
-      // not include a Navigator'.
-      // useRootNavigator: true pakai Navigator root dari MaterialApp
-      // yang ada di atas UpdateGate, supaya sheet push berhasil.
-      useRootNavigator: true,
+      context: navCtx,
       isDismissible: !mandatory,
       enableDrag: !mandatory,
       isScrollControlled: true,
@@ -110,7 +115,11 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
       // Tutup sheet, lalu trigger installer sistem. Setelah install
       // selesai Android akan restart app ke versi baru (atau user tekan
       // "Buka" di dialog sistem).
-      Navigator.of(context).pop();
+      //
+      // Pakai AppRouter.rootKey.currentState langsung — Navigator.of(context)
+      // dari UpdateGate context gagal karena tidak ada Navigator ancestor
+      // (sama seperti _showUpdateSheet di atas).
+      AppRouter.rootKey.currentState?.pop();
       final res = await InstallPlugin.install(path);
       final ok = res['isSuccess'] == true;
       if (!ok && mounted) {

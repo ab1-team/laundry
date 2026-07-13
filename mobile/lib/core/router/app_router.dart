@@ -137,7 +137,16 @@ class SheetRoute<T> extends PageRouteBuilder<T> {
 class AppRouter {
   AppRouter._();
 
-  static final _rootKey = GlobalKey<NavigatorState>();
+  /// Root Navigator GlobalKey — dipakai oleh widget di luar Router scope
+  /// (mis. UpdateGate yang di-mount via `builder` callback MaterialApp)
+  /// untuk akses Navigator. Tanpa akses ini, Navigator.of(context) dari
+  /// UpdateGate gagal karena Navigator di-abstract ke Router API dan
+  /// tidak ada di ancestor context.
+  ///
+  /// Ekspos sebagai public static agar mudah di-inject dari mana saja
+  /// tanpa lewat Provider. Identitas-nya satu dengan key yang di-pass
+  /// ke GoRouter(navigatorKey:) supaya currentState/context konsisten.
+  static final rootKey = GlobalKey<NavigatorState>();
   static final _shellKey = GlobalKey<NavigatorState>();
 
   /// Adapter: bridge StateNotifier (authProvider) ke Listenable agar
@@ -148,7 +157,7 @@ class AppRouter {
     final auth = ref.read(authProvider.notifier);
     final refresh = _AuthRouterRefresh(auth);
     return GoRouter(
-      navigatorKey: _rootKey,
+      navigatorKey: rootKey,
       initialLocation: '/login',
       refreshListenable: refresh,
       redirect: (ctx, state) {
