@@ -42,6 +42,10 @@ COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 # Laravel dotenv + env() helper lihat process env vars.
 RUN echo "variables_order = \"EGPCS\"" > /usr/local/etc/php/conf.d/zz-dotenv.ini
 
+# Naikkan upload limits supaya APK release (max 100MB di Laravel)
+# tidak ditolak PHP. Default php-fpm post_max_size=8M & upload_max_filesize=2M.
+COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
+
 # Install PHP dependencies (production: no dev). composer.lock pinning
 # supaya build reproducible — versi dependency selalu sama persis.
 COPY --chown=www-data:www-data composer.json composer.lock ./
