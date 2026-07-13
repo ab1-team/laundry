@@ -2,7 +2,7 @@ name: laundry
 description: "SaaS Laundry Management - Mobile App"
 publish_to: 'none'
 
-version: 1.1.1+3
+version: 1.1.2+4
 
 environment:
   sdk: ^3.10.0
@@ -46,6 +46,11 @@ dependencies:
   # In-app self-update: download APK dari backend lalu trigger package
   # installer Android. Tidak lewat Play Store — distribusi langsung.
   install_plugin: ^2.1.0
+  # Baca versionName + versionCode dari PackageManager untuk self-update
+  # comparison. Tanpa ini, mobile tidak tahu versi dirinya yang sebenarnya
+  # (fallback ke hardcode 1.1.0+2 → infinite "update available" loop walau
+  # user sudah di versi terbaru).
+  package_info_plus: ^8.0.0
   # Permission runtime untuk install packages di Android 8+.
   permission_handler: ^11.3.1
   # Bantu parsing version string "1.2.0" jadi comparable.

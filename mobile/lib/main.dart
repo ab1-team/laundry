@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:package_info_plus/package_info_plus.dart' as pkg_info_plus;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/router/app_router.dart';
@@ -20,6 +21,14 @@ Future<void> main() async {
   // providers can read their initial value synchronously (avoids a
   // light-to-dark flash on first frame).
   final prefs = await SharedPreferences.getInstance();
+  // Baca versi runtime dari PackageManager SEBELUM runApp. Tanpa ini,
+  // update_flow pakai fallback statis dari packageInfoProvider (0.0.0+0
+  // atau 1.0.0+1) → mobile pikir dirinya selalu versi lama → infinite
+  // "update available" loop walau user sudah install versi terbaru.
+  //
+  // Kalau PackageManager gagal baca (mis. unit test tanpa Android context),
+  // pakai fallback _readPackageInfo (1.0.0+1) — bukan crash.
+  final pkg = await _readPackageInfo();
   // Pick the initial system bar style from the saved theme mode so the
   // status bar icons are readable from the splash onward — no flash
   // when MaterialApp.router takes over.
@@ -44,14 +53,24 @@ Future<void> main() async {
   runApp(ProviderScope(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
-      // Sinkronkan versi runtime dengan pubspec.yaml. Kalau lupa override,
-      // default fallback di update_service.dart akan dipakai.
-      packageInfoProvider.overrideWithValue(
-        const PackageInfo(versionName: '1.1.0', versionCode: 2),
-      ),
+      packageInfoProvider.overrideWithValue(pkg),
     ],
     child: const LaundryApp(),
   ));
+}
+
+/// Baca versionName + versionCode dari PackageManager.
+/// Default fallback `1.0.0+1` dipakai kalau PackageManager gagal (mis.
+/// unit test tanpa Android context, atau build target non-Android) —
+/// lebih buruk dari yang sebenarnya tapi tidak crash. Update flow tetap
+/// berjalan: kalau server latest > 1.0.0 akan trigger update.
+Future<PackageInfo> _readPackageInfo() async {
+  try {
+    final info = await pkg_info_plus.PackageInfo.fromPlatform();
+    return PackageInfo(versionName: info.version, versionCode: int.tryParse(info.buildNumber) ?? 0);
+  } catch (_) {
+    return const PackageInfo(versionName: '1.0.0', versionCode: 1);
+  }
 }
 
 ThemeMode _readThemeMode(SharedPreferences prefs) {

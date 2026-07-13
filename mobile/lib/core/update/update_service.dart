@@ -11,13 +11,13 @@ import 'version.dart';
 
 /// Sumber versi aplikasi yang sedang berjalan.
 ///
-/// Implementasi production pakai `package_info_plus` untuk membaca
-/// versionName + versionCode dari PackageManager. Disini di-hardcode
-/// sebagai fallback agar service tidak crash kalau package belum
-/// ditambah; widget yang konsumsi tinggal override nilai ini lewat
-/// ProviderScope saat bootstrap.
-///
-/// Override via: `packageInfoProvider.overrideWithValue((name: "1.1.0", code: 2))`
+/// Class ini adalah model lokal — bukan re-export dari package_info_plus.
+/// Dipakai oleh UpdateService untuk komparasi dengan latest_version
+/// dari backend. Runtime versionName + versionCode dibaca di main.dart
+/// via `package_info_plus` PackageInfo.fromPlatform(), lalu di-inject
+/// ke provider scope. Default di sini cuma fallback kalau ProviderScope
+/// lupa override (mis. unit test tanpa bootstrap) — bukan sumber
+/// kebenaran untuk production.
 class PackageInfo {
   const PackageInfo({required this.versionName, required this.versionCode});
   final String versionName;
@@ -25,10 +25,10 @@ class PackageInfo {
 }
 
 final packageInfoProvider = Provider<PackageInfo>((ref) {
-  // Default harus sinkron dengan `mobile/pubspec.yaml` (version: 1.1.0+2).
-  // Pada runtime sebenarnya, service akan di-override di main.dart setelah
-  // PackageManager read selesai.
-  return const PackageInfo(versionName: '1.1.0', versionCode: 2);
+  // Fallback kalau tidak di-override: pakai 0.0.0+0 supaya komparasi
+  // selalu trigger update, memaksa user/admin sadar konfigurasi salah.
+  // Production path di main.dart SELALU override dengan runtime read.
+  return const PackageInfo(versionName: '0.0.0', versionCode: 0);
 });
 
 /// Service utama self-update.
