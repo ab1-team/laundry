@@ -112,13 +112,13 @@
                                     </form>
                                 @endif
 
-                                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('upload-{{ $r->id }}').click()">
+                                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('upload-input-{{ $r->id }}').click()">
                                     {{ $r->apk_path ? 'Replace' : 'Upload' }} APK
                                 </button>
 
-                                <form id="upload-{{ $r->id }}" method="POST" action="{{ route('admin.releases.upload', $r) }}" enctype="multipart/form-data" style="display: none;">
+                                <form id="upload-form-{{ $r->id }}" method="POST" action="{{ route('admin.releases.upload', $r) }}" enctype="multipart/form-data" style="display: none;">
                                     @csrf
-                                    <input type="file" name="apk" accept=".apk,application/vnd.android.package-archive"
+                                    <input id="upload-input-{{ $r->id }}" type="file" name="apk" accept=".apk,application/vnd.android.package-archive"
                                            onchange="this.form.submit()">
                                 </form>
 
