@@ -120,9 +120,14 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
 
   @override
   Widget build(BuildContext context) {
-    // Listen hasil cek, lalu trigger sheet kalau perlu. Tidak rebuild
-    // seluruh tree saat progress berubah (progress ada di state lokal
-    // _UpdateSheet).
+    // Subscribe + listen hasil cek, lalu trigger sheet kalau perlu.
+    //
+    // ref.listen saja tidak trigger fetch pada FutureProvider.autoDispose
+    // — listener butuh provider aktif dulu. ref.watch mengaktifkan
+    // provider (first fetch) dan menjaga dia tetap hidup selama widget
+    // mounted; ref.listen attach side-effect tanpa rebuild setiap state
+    // change. Kombinasi keduanya = provider aktif + side-effect ringan.
+    ref.watch(updateCheckProvider);
     ref.listen<AsyncValue<UpdateCheckResult>>(updateCheckProvider, (prev, next) {
       next.whenData(_maybeHandle);
     });
