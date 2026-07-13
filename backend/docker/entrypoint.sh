@@ -30,4 +30,18 @@ fi
 chown www-data:www-data /var/www/html/.env
 chmod 0664 /var/www/html/.env
 
+# Bind-mount storage/app dari host (lihat docker-compose.yml volume
+# ./storage/app:/var/www/html/storage/app). Host owner biasanya uid
+# SSH user (root/enpii/197121) — bukan www-data (uid 33). Tanpa chown
+# di sini, mkdir()/file_put_contents() di runtime gagal: "Permission
+# denied" walaupun mode bits longgar, sama seperti .env gotcha.
+# Fix: chown -R setelah container start supaya semua subdir releases/,
+# icons/, tenants/ yang di-create runtime juga ikut writable.
+#
+# `-R` recursive tapi scope cuma storage/app subtree, bukan seluruh
+# image — chown image jadi mahal. Pola: chown point-of-write dirs
+# saja, bukan /var/www/html/.
+chown -R www-data:www-data /var/www/html/storage/app
+chmod -R ug+rwX /var/www/html/storage/app
+
 exec "$@"
