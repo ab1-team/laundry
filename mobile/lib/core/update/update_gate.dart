@@ -41,11 +41,12 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   double _progress = 0;
   CancelToken? _cancelToken;
 
-  @override
-  void dispose() {
-    _cancelToken?.cancel('UpdateGate disposed');
-    super.dispose();
-  }
+  /// GlobalKey ke state ini — dipakai oleh _UpdateSheet (yang di-build
+  /// oleh showModalBottomSheet) untuk panggil _startDownload.
+  /// findAncestorStateOfType tidak reliable karena modal route context
+  /// tidak punya _UpdateGate di ancestor tree (gate ada di MaterialApp
+  /// builder callback, modal route di Navigator scope di sub-tree).
+  final GlobalKey<_UpdateGateState> _selfKey = GlobalKey<_UpdateGateState>();
 
   void _maybeHandle(UpdateCheckResult result) {
     if (!mounted) return;
@@ -88,6 +89,10 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
         mandatory: mandatory,
         progress: _progress,
         downloading: _downloading,
+        // Pass selfKey supaya sheet bisa panggil _startDownload tanpa
+        // findAncestorStateOfType (yang return null karena modal route
+        // context tidak punya _UpdateGate di ancestor tree).
+        gateKey: _selfKey,
       ),
     );
     if (dismissed == true && !mandatory) {
@@ -112,9 +117,10 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
         },
       );
       if (!mounted) return;
-      // Tutup sheet, lalu trigger installer sistem. Setelah install
-      // selesai Android akan restart app ke versi baru (atau user tekan
-      // "Buka" di dialog sistem).
+      // Tunda pop sampai install prompt muncul, supaya user lihat
+      // transisi "download selesai → buka installer" bukan tiba-tiba
+      // install dialog muncul tanpa context. Tanpa delay, sheet pop dan
+      // sistem install dialog race sehingga user bingung.
       //
       // Pakai AppRouter.rootKey.currentState langsung — Navigator.of(context)
       // dari UpdateGate context gagal karena tidak ada Navigator ancestor
@@ -161,12 +167,19 @@ class _UpdateSheet extends ConsumerWidget {
     required this.mandatory,
     required this.progress,
     required this.downloading,
+    required this.gateKey,
   });
 
   final AppVersionInfo info;
   final bool mandatory;
   final double progress;
   final bool downloading;
+
+  /// GlobalKey ke _UpdateGateState — dipakai untuk panggil _startDownload
+  /// dari button handler. findAncestorStateOfType tidak reliable karena
+  /// sheet di-build oleh showModalBottomSheet dengan modal route context
+  /// yang tidak punya _UpdateGate di ancestor tree.
+  final GlobalKey<_UpdateGateState> gateKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -242,9 +255,12 @@ class _UpdateSheet extends ConsumerWidget {
                       onPressed: () {
                         // Trigger download; sheet di-close dari _startDownload
                         // setelah file siap → install.
-                        final gate = context
-                            .findAncestorStateOfType<_UpdateGateState>();
-                        gate?._startDownload(info);
+                        //
+                        // Pakai gateKey.currentState langsung — modal route
+                        // context tidak punya _UpdateGate di ancestor tree
+                        // jadi findAncestorStateOfType return null (button
+                        // silent no-op).
+                        gateKey.currentState?._startDownload(info);
                       },
                     ),
                   ),
