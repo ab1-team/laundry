@@ -37,9 +37,23 @@ class UpdateGate extends ConsumerStatefulWidget {
 
 class _UpdateGateState extends ConsumerState<UpdateGate> {
   UpdateRequirement? _handled;
-  bool _downloading = false;
-  double _progress = 0;
+
+  /// State lokal (UI thread) di gate tidak dipakai untuk rebuild sheet —
+  /// ValueNotifier dipakai supaya _UpdateSheet (yang di-build sekali
+  /// oleh showModalBottomSheet) bisa listen perubahan progress/downloading
+  /// via ValueListenableBuilder. Tanpa notifier, sheet stuck di nilai
+  /// awal karena tidak ada mekanisme rebuild dari luar.
+  final ValueNotifier<bool> _downloading = ValueNotifier<bool>(false);
+  final ValueNotifier<double> _progress = ValueNotifier<double>(0);
   CancelToken? _cancelToken;
+
+  @override
+  void dispose() {
+    _cancelToken?.cancel('UpdateGate disposed');
+    _downloading.dispose();
+    _progress.dispose();
+    super.dispose();
+  }
 
   /// GlobalKey ke state ini — dipakai oleh _UpdateSheet (yang di-build
   /// oleh showModalBottomSheet) untuk panggil _startDownload.
@@ -87,6 +101,10 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
       builder: (_) => _UpdateSheet(
         info: info,
         mandatory: mandatory,
+        // Pass ValueNotifier (bukan value) supaya sheet bisa listen
+        // perubahan progress dari gate via ValueListenableBuilder.
+        // Sebelumnya pass _progress/_downloading sebagai value, sheet
+        // tidak rebuild saat download callback fire.
         progress: _progress,
         downloading: _downloading,
         // Pass selfKey supaya sheet bisa panggil _startDownload tanpa
@@ -102,18 +120,19 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   }
 
   Future<void> _startDownload(AppVersionInfo info) async {
-    setState(() {
-      _downloading = true;
-      _progress = 0;
-      _cancelToken = CancelToken();
-    });
+    _downloading.value = true;
+    _progress.value = 0;
+    _cancelToken = CancelToken();
     try {
       final svc = ref.read(updateServiceProvider);
       final path = await svc.downloadApk(
         info.apkUrl,
         cancelToken: _cancelToken,
         onProgress: (p) {
-          if (mounted) setState(() => _progress = p);
+          // Update ValueNotifier (bukan setState) supaya ValueListenableBuilder
+          // di _UpdateSheet fire rebuild. setState() di gate tidak affect
+          // sheet yang di-build sekali oleh showModalBottomSheet.
+          if (mounted) _progress.value = p;
         },
       );
       if (!mounted) return;
@@ -132,11 +151,11 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal memulai instalasi: ${res['errorMessage']}')),
         );
-        setState(() => _downloading = false);
+        _downloading.value = false;
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _downloading = false);
+      _downloading.value = false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal mengunduh update: $e')),
       );
@@ -161,19 +180,17 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   }
 }
 
-class _UpdateSheet extends ConsumerWidget {
+class _UpdateSheet extends StatelessWidget {
   const _UpdateSheet({
     required this.info,
     required this.mandatory,
-    required this.progress,
-    required this.downloading,
     required this.gateKey,
+    required this.downloading,
+    required this.progress,
   });
 
   final AppVersionInfo info;
   final bool mandatory;
-  final double progress;
-  final bool downloading;
 
   /// GlobalKey ke _UpdateGateState — dipakai untuk panggil _startDownload
   /// dari button handler. findAncestorStateOfType tidak reliable karena
@@ -181,8 +198,16 @@ class _UpdateSheet extends ConsumerWidget {
   /// yang tidak punya _UpdateGate di ancestor tree.
   final GlobalKey<_UpdateGateState> gateKey;
 
+  /// ValueNotifier — dipakai bersama dengan _UpdateGateState supaya
+  /// sheet rebuild saat progress berubah. Penting karena sheet di-build
+  /// sekali oleh showModalBottomSheet (tidak auto-rebuild saat UpdateGate
+  /// state berubah), jadi butuh ValueListenableBuilder untuk listen
+  /// perubahan dari luar widget tree.
+  final ValueListenable<bool> downloading;
+  final ValueListenable<double> progress;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final cs = context.colors;
     return SafeArea(
       top: false,
@@ -223,49 +248,67 @@ class _UpdateSheet extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 16),
-            if (downloading) ...[
-              LinearProgressIndicator(
-                value: progress > 0 ? progress : null,
-                color: AppColors.primary,
-                backgroundColor: cs.outlineVariant,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                progress > 0
-                    ? 'Mengunduh... ${(progress * 100).toStringAsFixed(0)}%'
-                    : 'Mengunduh...',
-                style: AppTextStyles.bodySm.copyWith(color: cs.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-            ] else
-              Row(
-                children: [
-                  if (!mandatory)
-                    Expanded(
-                      child: AppButton(
-                        label: 'Nanti',
-                        variant: AppButtonVariant.tonal,
-                        onPressed: () => Navigator.of(context).pop(true),
+            // ValueListenableBuilder mendengarkan ValueNotifier dari
+            // _UpdateGateState — saat gate update progress (callback
+            // download), notifier fire → builder re-run → progress bar
+            // rebuild dengan nilai baru. Tanpa ValueListenableBuilder,
+            // sheet stuck di nilai awal karena showModalBottomSheet
+            // builder dipanggil sekali.
+            ValueListenableBuilder<bool>(
+              valueListenable: downloading,
+              builder: (_, isDownloading, __) {
+                if (!isDownloading) {
+                  return Row(
+                    children: [
+                      if (!mandatory)
+                        Expanded(
+                          child: AppButton(
+                            label: 'Nanti',
+                            variant: AppButtonVariant.tonal,
+                            onPressed: () => Navigator.of(context).pop(true),
+                          ),
+                        ),
+                      if (!mandatory) const SizedBox(width: 12),
+                      Expanded(
+                        child: AppButton(
+                          label: 'Update sekarang',
+                          onPressed: () {
+                            // Trigger download; sheet di-close dari _startDownload
+                            // setelah file siap → install.
+                            //
+                            // Pakai gateKey.currentState langsung — modal route
+                            // context tidak punya _UpdateGate di ancestor tree
+                            // jadi findAncestorStateOfType return null (button
+                            // silent no-op).
+                            gateKey.currentState?._startDownload(info);
+                          },
+                        ),
                       ),
-                    ),
-                  if (!mandatory) const SizedBox(width: 12),
-                  Expanded(
-                    child: AppButton(
-                      label: 'Update sekarang',
-                      onPressed: () {
-                        // Trigger download; sheet di-close dari _startDownload
-                        // setelah file siap → install.
-                        //
-                        // Pakai gateKey.currentState langsung — modal route
-                        // context tidak punya _UpdateGate di ancestor tree
-                        // jadi findAncestorStateOfType return null (button
-                        // silent no-op).
-                        gateKey.currentState?._startDownload(info);
-                      },
-                    ),
+                    ],
+                  );
+                }
+                return ValueListenableBuilder<double>(
+                  valueListenable: progress,
+                  builder: (_, p, __) => Column(
+                    children: [
+                      LinearProgressIndicator(
+                        value: p > 0 ? p : null,
+                        color: AppColors.primary,
+                        backgroundColor: cs.outlineVariant,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        p > 0
+                            ? 'Mengunduh... ${(p * 100).toStringAsFixed(0)}%'
+                            : 'Mengunduh...',
+                        style: AppTextStyles.bodySm.copyWith(color: cs.onSurfaceVariant),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
+            ),
           ],
         ),
       ),
