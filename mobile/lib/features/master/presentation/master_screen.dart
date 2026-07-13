@@ -1075,15 +1075,30 @@ class _NetworkIcon extends StatelessWidget {
 }
 
 /// Grid 3 kolom icon picker. Pilih dari iconsProvider (icon yang sudah
-/// di-upload admin). Tahan null = tanpa icon. Tampilkan "Tanpa icon"
-/// sebagai tile pertama agar user bisa unset.
-class _IconPickerGrid extends ConsumerWidget {
+/// di-upload admin). Tahan null = tanpa icon. Cap tinggi kontainer
+/// (~4 baris) + scroll internal supaya form sheet tetap pendek walau
+/// koleksi icon banyak; search field di atas grid untuk filter nama.
+class _IconPickerGrid extends ConsumerStatefulWidget {
   const _IconPickerGrid({required this.selectedIconId, required this.onChanged});
   final int? selectedIconId;
   final ValueChanged<int?> onChanged;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_IconPickerGrid> createState() => _IconPickerGridState();
+}
+
+class _IconPickerGridState extends ConsumerState<_IconPickerGrid> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(iconsProvider);
     return async.when(
       loading: () => const SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
@@ -1105,61 +1120,98 @@ class _IconPickerGrid extends ConsumerWidget {
             ),
           );
         }
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1,
-          ),
-          itemCount: icons.length,
-          itemBuilder: (_, i) {
-            final ic = icons[i];
-            final selected = ic.id == selectedIconId;
-            return GestureDetector(
-              onTap: () => onChanged(ic.id),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? AppColors.secondaryContainer
-                      : context.colors.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(
-                    color: selected ? AppColors.secondary : Colors.transparent,
-                    width: 2,
-                  ),
+        final q = _query.trim().toLowerCase();
+        final filtered = q.isEmpty
+            ? icons
+            : icons.where((ic) => ic.name.toLowerCase().contains(q)).toList();
+
+        // ~4 baris tile (@ aspectRatio 1 + spacing 10 + label ≈ 92px)
+        // supaya sheet tidak memanjang; scrollable internal jadi
+        // sisa icon bisa dijangkau tanpa bikin form kepanjangan.
+        const double _pickerHeight = 360;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField(
+              label: '',
+              hint: 'Cari icon...',
+              controller: _searchCtrl,
+              prefixIcon: Icons.search,
+              variant: AppTextFieldVariant.search,
+              onChanged: (v) => setState(() => _query = v),
+            ),
+            const SizedBox(height: 10),
+            if (filtered.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  'Tidak ada icon yang cocok dengan "${_query.trim()}".',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodySm.copyWith(color: context.colors.onSurfaceVariant),
                 ),
-                child: Column(
-                  children: [
-                    Expanded(
+              )
+            else
+              SizedBox(
+                height: _pickerHeight,
+                child: GridView.builder(
+                  // shrinkWrap false agar grid setinggi SizedBox; physics
+                  // boleh di-scroll walau parent SingleChildScrollView
+                  // karena gridview sudah di-pin tinggi tetap.
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1,
+                  ),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final ic = filtered[i];
+                    final selected = ic.id == widget.selectedIconId;
+                    return GestureDetector(
+                      onTap: () => widget.onChanged(ic.id),
                       child: Container(
-                        clipBehavior: Clip.antiAlias,
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          color: selected
+                              ? AppColors.secondaryContainer
+                              : context.colors.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(
+                            color: selected ? AppColors.secondary : Colors.transparent,
+                            width: 2,
+                          ),
                         ),
-                        child: _NetworkIcon(url: ic.iconUrl, fallback: Icons.image_outlined, size: 24),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                clipBehavior: Clip.antiAlias,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                ),
+                                child: _NetworkIcon(url: ic.iconUrl, fallback: Icons.image_outlined, size: 24),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              ic.name,
+                              style: AppTextStyles.labelSm.copyWith(
+                                color: selected ? AppColors.onSecondaryContainer : context.colors.onSurfaceVariant,
+                                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      ic.name,
-                      style: AppTextStyles.labelSm.copyWith(
-                        color: selected ? AppColors.onSecondaryContainer : context.colors.onSurfaceVariant,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
-            );
-          },
+          ],
         );
       },
     );
