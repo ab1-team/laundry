@@ -27,25 +27,38 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // `disabled` = no callback yet, OR callback exists but a spinner is
+    // running. Both states should look the same — a faded surface fill
+    // — so the operator instantly reads the button as not-yet-actionable.
+    // Without this override the InkWell silently swallowed taps while
+    // the primary fill stayed full-strength, which looked like a bug.
     final disabled = onPressed == null || loading;
 
     Color bg, fg;
-    switch (variant) {
-      case AppButtonVariant.primary:
-        // DESIGN.md primary: navy pill, white text.
-        bg = AppColors.primary;
-        fg = AppColors.onPrimary;
-        break;
-      case AppButtonVariant.secondary:
-        // DESIGN.md quick-action primary: secondaryContainer bg + onSecondaryContainer fg.
-        bg = AppColors.secondaryContainer;
-        fg = AppColors.onSecondaryContainer;
-        break;
-      case AppButtonVariant.tonal:
-        // DESIGN.md secondary quick-action: surface-container-high fill, onSurface text — no border.
-        bg = AppColors.surfaceContainerHigh;
-        fg = AppColors.onSurface;
-        break;
+    if (disabled) {
+      // Disabled: neutral surface fill + muted text. Same pair for all
+      // variants so the affordance is consistent — the user learns
+      // "filled = active, faded = disabled" regardless of variant.
+      bg = AppColors.surfaceContainerHigh;
+      fg = AppColors.onSurfaceVariant;
+    } else {
+      switch (variant) {
+        case AppButtonVariant.primary:
+          // DESIGN.md primary: navy pill, white text.
+          bg = AppColors.primary;
+          fg = AppColors.onPrimary;
+          break;
+        case AppButtonVariant.secondary:
+          // DESIGN.md quick-action primary: secondaryContainer bg + onSecondaryContainer fg.
+          bg = AppColors.secondaryContainer;
+          fg = AppColors.onSecondaryContainer;
+          break;
+        case AppButtonVariant.tonal:
+          // DESIGN.md secondary quick-action: surface-container-high fill, onSurface text — no border.
+          bg = AppColors.surfaceContainerHigh;
+          fg = AppColors.onSurface;
+          break;
+      }
     }
 
     return Material(

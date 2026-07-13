@@ -291,54 +291,6 @@
             <h3>Tambah user baru</h3>
             <span class="hint">Buat akun untuk owner/operator tenant baru, atau tambah super admin lain.</span>
         </div>
-        <form method="POST" action="{{ route('admin.users.store') }}">
-            @csrf
-            <div class="field-row">
-                <div class="field">
-                    <label for="name">Nama</label>
-                    <input id="name" name="name" type="text" value="{{ old('name') }}" required>
-                </div>
-                <div class="field">
-                    <label for="email">Email</label>
-                    <input id="email" name="email" type="email" value="{{ old('email') }}" required>
-                </div>
-            </div>
-            <div class="field-row">
-                <div class="field">
-                    <label for="password">Password</label>
-                    <input id="password" name="password" type="password" minlength="8" required>
-                </div>
-                <div class="field">
-                    <label for="password_confirmation">Konfirmasi password</label>
-                    <input id="password_confirmation" name="password_confirmation" type="password" minlength="8" required>
-                </div>
-            </div>
-            <div class="field-row">
-                <div class="field">
-                    <label for="role_create">Role</label>
-                    <select id="role_create" name="role" data-role-select required>
-                        @php $oldRole = old('role', 'operator'); @endphp
-                        <option value="super_admin" {{ $oldRole === 'super_admin' ? 'selected' : '' }}>super_admin</option>
-                        <option value="owner" {{ $oldRole === 'owner' ? 'selected' : '' }}>owner</option>
-                        <option value="operator" {{ $oldRole === 'operator' ? 'selected' : '' }}>operator</option>
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="tenant_id_create">Tenant</label>
-                    <select id="tenant_id_create" name="tenant_id" data-tenant-select>
-                        <option value="">— Pilih tenant —</option>
-                        @foreach ($tenants as $t)
-                            <option value="{{ $t->id }}" {{ (string) old('tenant_id') === (string) $t->id ? 'selected' : '' }}>{{ $t->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
-            {{-- ====== Form Tambah User ====== --}}
-    <div class="card">
-        <div class="card-header">
-            <h3>Tambah user baru</h3>
-            <span class="hint">Buat akun untuk owner/operator tenant baru, atau tambah super admin lain.</span>
-        </div>
         <form method="POST" action="{{ route('admin.users.store') }}" id="form-create-user">
             @csrf
 
@@ -405,15 +357,6 @@
             <div class="field checkbox-row" style="margin-top: 8px;">
                 <input id="is_active_create" name="is_active" type="checkbox" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
                 <label for="is_active_create" style="margin: 0;">Aktif — user bisa login setelah dibuat</label>
-            </div>
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Tambah user</button>
-            </div>
-        </form>
-    </div>
-            <div class="field checkbox-row">
-                <input id="is_active_create" name="is_active" type="checkbox" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
-                <label for="is_active_create" style="margin: 0;">Aktif (user bisa login)</label>
             </div>
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Tambah user</button>

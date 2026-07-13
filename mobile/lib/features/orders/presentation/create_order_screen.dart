@@ -37,6 +37,8 @@ class _LineItem {
   _LineItem({
     required this.serviceId,
     required this.categoryId,
+    required this.categoryName,
+    required this.categorySortOrder,
     required this.name,
     required this.unit,
     required this.categoryIconUrl,
@@ -44,6 +46,11 @@ class _LineItem {
   }) : qty = 1;
   final int serviceId;
   final int categoryId;
+  // Cached category metadata so the Layanan section can group rows by
+  // category + render headers without re-watching categoriesProvider —
+  // the picker already passes these in when constructing the line.
+  final String categoryName;
+  final int categorySortOrder;
   final String name;
   final String unit;
   final String? categoryIconUrl;
@@ -145,10 +152,23 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
       ),
     );
     if (!mounted || picked == null) return;
+    // Resolve category metadata once at insert time so the Layanan
+    // section can group rows + render headers without re-watching
+    // categoriesProvider on every rebuild.
+    final cat = categories.firstWhere(
+      (c) => c.id == picked.categoryId,
+      orElse: () => ServiceCategory(
+        id: picked.categoryId,
+        name: picked.categoryName ?? 'Kategori',
+        sortOrder: 9999,
+      ),
+    );
     setState(() {
       _items.add(_LineItem(
         serviceId: picked.id,
         categoryId: picked.categoryId,
+        categoryName: cat.name,
+        categorySortOrder: cat.sortOrder,
         name: picked.name,
         unit: picked.unit,
         categoryIconUrl: picked.effectiveIconUrl,
@@ -442,10 +462,12 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
           else ...[
             _LayananSummary(count: _items.length, total: _subtotal),
             const SizedBox(height: 12),
-            for (var i = 0; i < _items.length; i++) ...[
-              _buildSelectedLineRow(i),
-              if (i < _items.length - 1) const SizedBox(height: 8),
-            ],
+            // Group lines by category so each category gets its own
+            // header above its tiles (mirrors the picker dialog grouping).
+            // Group order matches master-data sortOrder; within a group
+            // we preserve the order the operator picked services in
+            // (no extra sort — picked order == display order).
+            ..._buildGroupedLineRows(),
           ],
           // Surface load errors inline so the user knows why the picker
           // is unusable. The search bar above silently swallows taps in
@@ -631,6 +653,56 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
       builder: (_) => const _AddCustomerSheet(),
     );
     if (created != null && mounted) _pickCustomer(created);
+  }
+
+  /// Render the selected-lines list as a flat sequence of widgets
+  /// grouped by category. Each group starts with a `_LayananCategoryHeader`
+  /// followed by the line rows for that category. Returns an empty list
+  /// when `_items` is empty (defensive — caller already gates on
+  /// `_items.isEmpty`, but keeps this idempotent).
+  ///
+  /// Group order matches the master-data `sortOrder` (set by the tenant
+  /// owner), so the visual order of category sections is stable across
+  /// picks. Within a group, lines appear in pick order (FIFO) — no
+  /// secondary sort, since the operator's pick order is the natural
+  /// display order for an order under construction.
+  List<Widget> _buildGroupedLineRows() {
+    final byCat = <int, List<int>>{};
+    for (var i = 0; i < _items.length; i++) {
+      byCat.putIfAbsent(_items[i].categoryId, () => <int>[]).add(i);
+    }
+    final catIds = byCat.keys.toList()
+      ..sort((a, b) {
+        final ao = _items.firstWhere((it) => it.categoryId == a).categorySortOrder;
+        final bo = _items.firstWhere((it) => it.categoryId == b).categorySortOrder;
+        if (ao != bo) return ao.compareTo(bo);
+        // Tie-break by name for deterministic order when two categories
+        // share a sort_order.
+        final an = _items.firstWhere((it) => it.categoryId == a).categoryName;
+        final bn = _items.firstWhere((it) => it.categoryId == b).categoryName;
+        return an.compareTo(bn);
+      });
+    final widgets = <Widget>[];
+    for (final catId in catIds) {
+      final indices = byCat[catId]!;
+      final sample = _items[indices.first];
+      widgets.add(_LayananCategoryHeader(
+        name: sample.categoryName,
+        iconUrl: sample.categoryIconUrl,
+      ));
+      widgets.add(const SizedBox(height: 8));
+      for (var k = 0; k < indices.length; k++) {
+        widgets.add(_buildSelectedLineRow(indices[k]));
+        if (k < indices.length - 1) {
+          widgets.add(const SizedBox(height: 8));
+        }
+      }
+      widgets.add(const SizedBox(height: 16));
+    }
+    // Drop the trailing gap after the last group so the bottom doesn't
+    // get a stray 16px before the next section.
+    if (widgets.isNotEmpty) widgets.removeLast();
+    return widgets;
   }
 
   Widget _buildSelectedLineRow(int index) {
@@ -1166,6 +1238,37 @@ class _LayananSummary extends StatelessWidget {
   }
 }
 
+/// Per-category section header used inside the Layanan summary list.
+/// Mirrors the picker dialog's `_PickerCategoryHeader` so the operator's
+/// eye scans it the same way in both places — tiny category icon +
+/// uppercase tracking-wide label. Always rendered (no "Semua" mode to
+/// skip) because by the time we're in this list the user has already
+/// chosen which services they want; the header just labels the bucket.
+class _LayananCategoryHeader extends StatelessWidget {
+  const _LayananCategoryHeader({required this.name, this.iconUrl});
+  final String name;
+  final String? iconUrl;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      child: Row(
+        children: [
+          _OrderCategoryIcon(iconUrl: iconUrl, size: 18),
+          const SizedBox(width: 6),
+          Text(
+            name,
+            style: AppTextStyles.labelSm.copyWith(
+              color: context.colors.outline,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ===========================================
 // Service picker dialog (multi-add)
 // ===========================================
@@ -1227,26 +1330,37 @@ class _ServicePickerDialogState extends State<_ServicePickerDialog> {
   @override
   Widget build(BuildContext context) {
     final q = _search.trim().toLowerCase();
-    // Lookup table for category sort order; fall back gracefully when a
-    // service references a category the picker doesn't know about (e.g.
-    // the master load returned more services than categories because of
-    // a partial eager-load).
+    // Lookup table for category metadata (sortOrder + name + iconUrl).
     final catsById = {for (final c in widget.categories) c.id: c};
     final filtered = widget.services.where((s) {
       if (widget.excludeIds.contains(s.id)) return false;
       if (_categoryFilterId != null && s.categoryId != _categoryFilterId) return false;
       if (q.isNotEmpty && !s.name.toLowerCase().contains(q)) return false;
       return true;
-    }).toList()
-      // Stable, predictable order: category sortOrder (matches the pill
-      // order above), then alphabetical name. Services whose category
-      // isn't in `catsById` sink to the bottom via sortOrder default 9999.
+    }).toList();
+
+    // Group by categoryId so we can render per-category section headers
+    // inside the scrollable list. Groups preserve the master-data order:
+    // Map iteration is insertion order, and we insert categories in
+    // sortOrder-then-name order, so the headers match the pill row
+    // above and the picker order the owner set in Master Data.
+    final groups = <int, List<Service>>{};
+    for (final s in filtered) {
+      groups.putIfAbsent(s.categoryId, () => <Service>[]).add(s);
+    }
+    final sortedCategoryIds = groups.keys.toList()
       ..sort((a, b) {
-        final ao = catsById[a.categoryId]?.sortOrder ?? 9999;
-        final bo = catsById[b.categoryId]?.sortOrder ?? 9999;
+        final ao = catsById[a]?.sortOrder ?? 9999;
+        final bo = catsById[b]?.sortOrder ?? 9999;
         if (ao != bo) return ao.compareTo(bo);
-        return a.name.compareTo(b.name);
+        // Tie-break by name so equal sort_order values get a deterministic
+        // (alphabetical) ordering.
+        return (catsById[a]?.name ?? '').compareTo(catsById[b]?.name ?? '');
       });
+    // Within each group, alphabetical by service name.
+    for (final list in groups.values) {
+      list.sort((a, b) => a.name.compareTo(b.name));
+    }
 
     // Three distinct empty states so the message matches the actual reason:
     //   1. No services defined at all.
@@ -1259,6 +1373,34 @@ class _ServicePickerDialogState extends State<_ServicePickerDialog> {
       emptyMessage = 'Semua layanan sudah dipilih.';
     } else if (filtered.isEmpty) {
       emptyMessage = 'Tidak ada layanan yang cocok dengan pencarian.';
+    }
+
+    // Flatten the grouped view into a list of widgets. Each entry is
+    // either a category header (only when viewing "Semua") or a service
+    // tile. We need a flat list (not ListView.separated) because headers
+    // don't share a uniform separator slot with tiles — the gaps after
+    // a header are bigger than the gaps between tiles.
+    final items = <Widget>[];
+    if (emptyMessage == null) {
+      for (final catId in sortedCategoryIds) {
+        // Skip the redundant category header when a single category is
+        // filtered in — the pill above already tells the user what
+        // they're looking at.
+        if (_categoryFilterId == null) {
+          items.add(_PickerCategoryHeader(category: catsById[catId]));
+          items.add(const SizedBox(height: 8));
+        }
+        for (final s in groups[catId]!) {
+          items.add(_PickerServiceTile(
+            service: s,
+            onTap: () => _onPick(s),
+          ));
+          items.add(const SizedBox(height: 8));
+        }
+      }
+      // Drop the trailing separator so the last row hugs the bottom
+      // padding cleanly.
+      if (items.isNotEmpty) items.removeLast();
     }
 
     return Dialog(
@@ -1351,18 +1493,46 @@ class _ServicePickerDialogState extends State<_ServicePickerDialog> {
                         ),
                       ),
                     )
-                  : ListView.separated(
+                  : ListView(
                       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) => _PickerServiceTile(
-                        service: filtered[i],
-                        onTap: () => _onPick(filtered[i]),
-                      ),
+                      children: items,
                     ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Category section header inside the picker dialog. Same visual
+/// language as the master-data list — tiny category icon + uppercase
+/// tracking-wide label — so the operator's eye already knows how to
+/// scan it. Only renders when the dialog is in "Semua" mode; when a
+/// single category is filtered in, the pill above is the label and the
+/// in-list header would be redundant.
+class _PickerCategoryHeader extends StatelessWidget {
+  const _PickerCategoryHeader({this.category});
+  final ServiceCategory? category;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+      child: Row(
+        children: [
+          _OrderCategoryIcon(
+            iconUrl: category?.iconUrl,
+            size: 18,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            category?.name ?? 'Kategori',
+            style: AppTextStyles.labelSm.copyWith(
+              color: context.colors.outline,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }
