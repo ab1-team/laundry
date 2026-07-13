@@ -94,16 +94,18 @@ class UpdateGateState extends ConsumerState<UpdateGate> {
     }
     final dismissed = await showModalBottomSheet<bool>(
       context: navCtx,
-      // Modal tidak boleh di-dismiss (tap-outside / drag-down) selama
-      // download berjalan — biar progress bar visible sampai selesai
-      // dan user lihat transisi ke install prompt. Setelah download
-      // selesai, _downloading jadi false (lihat ValueListenableBuilder
-      // di sheet yang read notifier ini) tapi showModalBottomSheet
-      // baca nilai `mandatory` satu kali saat push. Karena flow kita
-      // auto-pop modal di _startDownload setelah install trigger,
-      // user tidak akan sempat tap-outside anyway.
-      isDismissible: !mandatory,
-      enableDrag: !mandatory,
+      // Force close mechanism off:
+      // - isDismissible: tap-outside / barrier dismiss tidak berfungsi.
+      // - enableDrag: drag-down sheet tidak berfungsi.
+      //
+      // User HANYA bisa close via button 'Nanti' (optional) atau
+      // setelah flow _startDownload selesai (gate.pop setelah
+      // InstallPlugin.install return). Tanpa ini, user bisa tap
+      // area kosong di luar sheet → sheet hilang → download callback
+      // tetap jalan tapi UI feedback hilang → saat install dialog
+      // muncul tiba-tiba tanpa context.
+      isDismissible: false,
+      enableDrag: false,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
