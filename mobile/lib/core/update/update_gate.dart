@@ -92,36 +92,36 @@ class UpdateGateState extends ConsumerState<UpdateGate> {
       // retry saat user trigger lagi.
       return;
     }
-    final dismissed = await showModalBottomSheet<bool>(
+    final dismissed = await showDialog<bool>(
       context: navCtx,
-      // Force close mechanism off:
-      // - isDismissible: tap-outside / barrier dismiss tidak berfungsi.
-      // - enableDrag: drag-down sheet tidak berfungsi.
+      // Centered dialog — lebih konvensional untuk 'update tersedia'
+      // dibanding bottom sheet yang mengambil setengah layar dan
+      // menutupi konten dashboard. Dengan Dialog widget, sheet muncul
+      // di tengah dengan backdrop gelap full-screen.
       //
-      // User HANYA bisa close via button 'Nanti' (optional) atau
-      // setelah flow _startDownload selesai (gate.pop setelah
-      // InstallPlugin.install return). Tanpa ini, user bisa tap
-      // area kosong di luar sheet → sheet hilang → download callback
-      // tetap jalan tapi UI feedback hilang → saat install dialog
-      // muncul tiba-tiba tanpa context.
-      isDismissible: false,
-      enableDrag: false,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      builder: (_) => _UpdateSheet(
-        info: info,
-        mandatory: mandatory,
-        // Pass ValueNotifier (bukan value) supaya sheet bisa listen
-        // perubahan progress dari gate via ValueListenableBuilder.
-        // Sebelumnya pass _progress/_downloading sebagai value, sheet
-        // tidak rebuild saat download callback fire.
-        progress: _progress,
-        downloading: _downloading,
-        // Pass selfKey supaya sheet bisa panggil _startDownload tanpa
-        // findAncestorStateOfType (yang return null karena modal route
-        // context tidak punya _UpdateGate di ancestor tree).
-        gateKey: updateGateKey,
+      // Close mechanism off:
+      // - barrierDismissible: tap-outside / barrier dismiss tidak
+      //   berfungsi. User HANYA bisa close via button 'Nanti'
+      //   (optional, eksplisit) atau setelah flow _startDownload
+      //   selesai (gate.pop setelah InstallPlugin.install return).
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: _UpdateSheet(
+          info: info,
+          mandatory: mandatory,
+          // Pass ValueNotifier (bukan value) supaya sheet bisa listen
+          // perubahan progress dari gate via ValueListenableBuilder.
+          // Sebelumnya pass _progress/_downloading sebagai value, sheet
+          // tidak rebuild saat download callback fire.
+          progress: _progress,
+          downloading: _downloading,
+          // Pass selfKey supaya sheet bisa panggil _startDownload tanpa
+          // findAncestorStateOfType (yang return null karena modal route
+          // context tidak punya _UpdateGate di ancestor tree).
+          gateKey: updateGateKey,
+        ),
       ),
     );
     if (dismissed == true && !mandatory) {
