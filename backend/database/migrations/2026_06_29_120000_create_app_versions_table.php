@@ -25,8 +25,11 @@ return new class extends Migration
             // versionCode dari build.gradle — increment tiap build Android.
             $table->unsignedInteger('version_code');
             // Path relatif di Storage::disk('public') — mis.
-            // "releases/laundryaja-1.2.0.apk".
-            $table->string('apk_path', 255);
+            // "releases/laundryaja-1.2.0.apk". Nullable: rilis dibuat
+            // sebagai draft dulu (form "Buat rilis" tidak minta file),
+            // APK di-upload terpisah oleh route admin.releases.upload.
+            // Status badge di view turunan dari "apk_path null = Draft".
+            $table->string('apk_path', 255)->nullable();
             // Ukuran file dalam bytes, di-set otomatis saat upload.
             $table->unsignedBigInteger('apk_size')->nullable();
             // SHA-256 checksum, dipakai client untuk verifikasi integritas
