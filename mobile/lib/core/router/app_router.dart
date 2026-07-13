@@ -206,52 +206,52 @@ class AppRouter {
             GoRoute(path: '/master',   builder: (_, __) => const MasterScreen()),
           ],
         ),
-        GoRoute(path: '/orders/create', parentNavigatorKey: _rootKey, builder: (_, __) => const CreateOrderScreen()),
+        GoRoute(path: '/orders/create', parentNavigatorKey: rootKey, builder: (_, __) => const CreateOrderScreen()),
         GoRoute(
           path: '/orders/:id',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, st) => OrderDetailScreen(
             orderId: int.parse(st.pathParameters['id']!),
           ),
         ),
         GoRoute(
           path: '/settings',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const SettingsScreen(),
         ),
         GoRoute(
           path: '/settings/tenant/info',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const EditTenantInfoScreen(),
         ),
         GoRoute(
           path: '/settings/tenant/contact',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const EditTenantContactScreen(),
         ),
         GoRoute(
           path: '/settings/password',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const ChangePasswordScreen(),
         ),
         GoRoute(
           path: '/settings/profile',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const EditProfileScreen(),
         ),
         GoRoute(
           path: '/settings/notifications',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const NotificationSettingsScreen(),
         ),
         GoRoute(
           path: '/settings/preferences',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const PreferenceScreen(),
         ),
         GoRoute(
           path: '/settings/help',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const HelpScreen(),
         ),
 
@@ -260,17 +260,17 @@ class AppRouter {
         // =====================
         GoRoute(
           path: '/admin/tenants',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const AdminTenantsListScreen(),
         ),
         GoRoute(
           path: '/admin/tenants/new',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, __) => const AdminCreateTenantScreen(),
         ),
         GoRoute(
           path: '/admin/tenants/:id',
-          parentNavigatorKey: _rootKey,
+          parentNavigatorKey: rootKey,
           builder: (_, st) => AdminTenantDetailScreen(
             tenantId: int.parse(st.pathParameters['id']!),
           ),
