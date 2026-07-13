@@ -199,9 +199,16 @@
 
         /* Pagination — Laravel default pakai <nav> + Tailwind utility, kita override ke theme admin. */
         nav[role="navigation"] { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; }
-        nav[role="navigation"] > div:first-child,
-        nav[role="navigation"] > div:last-child { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-        nav[role="navigation"] a, nav[role="navigation"] span {
+        nav[role="navigation"] > div { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        /* "Showing X to Y of Z" text block — biarkan sebagai plain text, jangan diberi style button. */
+        nav[role="navigation"] p,
+        nav[role="navigation"] > div > span:not([aria-current]):not([aria-disabled]) {
+            color: var(--muted);
+        }
+        /* Style button: <a> biasa + <span aria-current="page"> + <span aria-disabled="true"> (Previous/Next inactive). */
+        nav[role="navigation"] a,
+        nav[role="navigation"] span[aria-current="page"],
+        nav[role="navigation"] span[aria-disabled="true"] {
             display: inline-block;
             padding: 6px 12px;
             border-radius: 6px;
@@ -213,7 +220,6 @@
             color: var(--text);
         }
         nav[role="navigation"] a:hover { background: #f9fafb; }
-        nav[role="navigation"] span[aria-current="page"] span,
         nav[role="navigation"] span[aria-current="page"] {
             background: var(--primary);
             color: #fff;
