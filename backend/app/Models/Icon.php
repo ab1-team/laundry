@@ -2,15 +2,14 @@
 
 namespace App\Models;
 
-use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Icon extends Model
 {
-    use BelongsToTenant;
+    // Icons adalah global asset — semua tenant refer ke tabel ini,
+    // TIDAK ada tenant_id. Tanpa BelongsToTenant trait.
 
     protected $fillable = [
-        'tenant_id',
         'name',
         'icon_path',
         'is_active',

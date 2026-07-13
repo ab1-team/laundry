@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -13,7 +10,6 @@ import '../../../core/theme/app_theme_ext.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/app_tab_header.dart';
 import '../../../core/widgets/app_text_field.dart';
-import '../data/icon.dart';
 import '../data/service.dart';
 import '../data/service_category.dart';
 import 'master_provider.dart';
@@ -31,7 +27,7 @@ class _MasterScreenState extends ConsumerState<MasterScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
+    _tab = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -64,7 +60,6 @@ class _MasterScreenState extends ConsumerState<MasterScreen> with SingleTickerPr
               tabs: const [
                 Tab(text: 'Kategori'),
                 Tab(text: 'Layanan'),
-                Tab(text: 'Icon'),
               ],
             ),
           ),
@@ -74,7 +69,6 @@ class _MasterScreenState extends ConsumerState<MasterScreen> with SingleTickerPr
               children: const [
                 _CategoryTab(),
                 _ServiceTab(),
-                _IconTab(),
               ],
             ),
           ),
@@ -1014,371 +1008,9 @@ void _toast(BuildContext context, String msg) {
 }
 
 // ===========================================
-// Tab 3: Icons (uploaded admin assets)
-// ===========================================
-
-class _IconTab extends ConsumerWidget {
-  const _IconTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(iconsProvider);
-    return Stack(
-      children: [
-        async.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e', style: TextStyle(color: context.colors.error))),
-          data: (icons) {
-            if (icons.isEmpty) {
-              return const _EmptyState(text: 'Belum ada icon.\nTekan tombol + untuk upload.');
-            }
-            return RefreshIndicator(
-              onRefresh: () async => ref.invalidate(iconsProvider),
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.95,
-                ),
-                itemCount: icons.length,
-                itemBuilder: (_, i) => _IconRow(key: ValueKey(icons[i].id), icon: icons[i]),
-              ),
-            );
-          },
-        ),
-        Positioned(
-          right: 20,
-          bottom: 20,
-          child: FloatingActionButton.extended(
-            heroTag: 'fab-icon',
-            onPressed: () => _openIconUploadSheet(context, ref),
-            backgroundColor: AppColors.secondaryContainer,
-            foregroundColor: AppColors.onSecondaryContainer,
-            icon: const Icon(Icons.add),
-            label: const Text('Icon'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _IconRow extends ConsumerStatefulWidget {
-  const _IconRow({super.key, required this.icon});
-  final IconAsset icon;
-
-  @override
-  ConsumerState<_IconRow> createState() => _IconRowState();
-}
-
-class _IconRowState extends ConsumerState<_IconRow> {
-  bool _deleting = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = widget.icon;
-    return Material(
-      color: context.colors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.summary),
-      child: InkWell(
-        onTap: _deleting ? null : () => _openIconUploadSheet(context, ref, icon: icon),
-        borderRadius: BorderRadius.circular(AppRadius.summary),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: context.colors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.summary),
-            border: Border.all(color: context.colors.surfaceContainerHighest, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.secondaryContainer.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: _NetworkIcon(url: icon.iconUrl, fallback: Icons.image_outlined, size: 36),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      icon.name,
-                      style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: _deleting
-                        ? const Center(
-                            child: SizedBox(
-                              width: 14, height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : InkWell(
-                            onTap: () => _confirmDelete(context),
-                            customBorder: const CircleBorder(),
-                            child: Icon(Icons.delete_outline, size: 18, color: context.colors.error),
-                          ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete(BuildContext context) async {
-    if (_deleting) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => _DeleteConfirmDialog(
-        name: widget.icon.name,
-        title: 'Hapus Icon?',
-        message: '"${widget.icon.name}" akan dihapus. Kategori/layanan yang memakai icon ini akan kehilangan icon.',
-      ),
-    );
-    if (ok != true) return;
-    setState(() => _deleting = true);
-    try {
-      await ref.read(iconRepositoryProvider).deleteIcon(widget.icon.id);
-      ref.invalidate(iconsProvider);
-      // Cascade nullOnDelete — refresh dependent caches.
-      ref.invalidate(categoriesProvider);
-      ref.invalidate(servicesProvider);
-    } catch (e) {
-      if (mounted) setState(() => _deleting = false);
-      if (context.mounted) _toast(context, 'Gagal: $e');
-    }
-  }
-}
-
-void _openIconUploadSheet(BuildContext context, WidgetRef ref, {IconAsset? icon}) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => _IconUploadSheet(icon: icon),
-  );
-}
-
-class _IconUploadSheet extends ConsumerStatefulWidget {
-  const _IconUploadSheet({this.icon});
-  final IconAsset? icon;
-
-  @override
-  ConsumerState<_IconUploadSheet> createState() => _IconUploadSheetState();
-}
-
-class _IconUploadSheetState extends ConsumerState<_IconUploadSheet> {
-  late final TextEditingController _name;
-  File? _pickedFile;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _name = TextEditingController(text: widget.icon?.name ?? '');
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pick({required ImageSource source}) async {
-    final picker = ImagePicker();
-    final XFile? f = await picker.pickImage(source: source, maxWidth: 512, imageQuality: 85);
-    if (f == null) return;
-    setState(() => _pickedFile = File(f.path));
-  }
-
-  Future<void> _save() async {
-    if (_name.text.trim().isEmpty) return;
-    final isUpdate = widget.icon != null;
-    // Untuk create, file wajib; untuk update, file opsional (replace).
-    if (!isUpdate && _pickedFile == null) {
-      _toast(context, 'Pilih gambar icon dulu');
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      final repo = ref.read(iconRepositoryProvider);
-      if (isUpdate) {
-        await repo.updateIcon(
-          widget.icon!.id,
-          name: _name.text.trim(),
-          iconFile: _pickedFile, // null = hanya update nama
-        );
-      } else {
-        await repo.createIcon(
-          name: _name.text.trim(),
-          iconFile: _pickedFile!,
-        );
-      }
-      ref.invalidate(iconsProvider);
-      ref.invalidate(categoriesProvider);
-      ref.invalidate(servicesProvider);
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) setState(() => _saving = false);
-      if (mounted) _toast(context, 'Gagal: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final insets = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: insets),
-      child: Container(
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.sheet)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: Column(
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: context.colors.outlineVariant,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      widget.icon == null ? 'Upload Icon' : 'Edit Icon',
-                      style: AppTextStyles.titleLg,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Preview: kalau ada pickedFile tampilkan, kalau edit
-                      // mode dan tidak ada pick baru, tampilkan icon lama.
-                      Center(
-                        child: Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: AppColors.secondaryContainer.withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(color: context.colors.outlineVariant),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: _pickedFile != null
-                              ? Image.file(_pickedFile!, fit: BoxFit.cover)
-                              : widget.icon != null
-                                  ? _NetworkIcon(url: widget.icon!.iconUrl, fallback: Icons.image_outlined, size: 48)
-                                  : const Center(
-                                      child: Icon(Icons.add_photo_alternate_outlined,
-                                          size: 40, color: AppColors.onSurfaceVariant),
-                                    ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Tombol pilih sumber gambar — Gallery + Camera.
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _saving ? null : () => _pick(source: ImageSource.gallery),
-                              icon: const Icon(Icons.photo_library_outlined, size: 18),
-                              label: const Text('Galeri'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _saving ? null : () => _pick(source: ImageSource.camera),
-                              icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                              label: const Text('Kamera'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        label: 'Nama icon',
-                        hint: 'Contoh: Cuci Setrika',
-                        controller: _name,
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: _saving ? null : _save,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: context.colors.primary,
-                          foregroundColor: AppColors.onPrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
-                        ),
-                        child: Text(_saving ? 'Menyimpan...' : 'Simpan'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ===========================================
 // Reusable Icon Widgets
 // ===========================================
 
-/// 44x44 leading icon container — dipakai di list row (kategori, layanan,
-/// service). Tampilkan gambar jika URL ada, fallback ke Material icon
-/// dengan background secondary container.
 class _LeadingIcon extends StatelessWidget {
   const _LeadingIcon({required this.url, required this.fallback});
   final String? url;

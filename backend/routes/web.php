@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\IconController;
 use App\Http\Controllers\Admin\ReleaseController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,5 +30,13 @@ Route::prefix('admin')->group(function () {
         Route::delete('releases/{appVersion}',   [ReleaseController::class, 'destroy'])->name('admin.releases.destroy');
         Route::post('releases/{appVersion}/upload',   [ReleaseController::class, 'upload'])->name('admin.releases.upload');
         Route::patch('releases/{appVersion}/activate', [ReleaseController::class, 'activate'])->name('admin.releases.activate');
+
+        // Icon Manager — CRUD icon global (lihat Admin\IconController).
+        // Icon dipakai oleh semua tenant lewat FK icon_id, jadi di-manage
+        // di sini sekali dan otomatis tersedia untuk picker mobile.
+        Route::get('icons',                  [IconController::class, 'index'])->name('admin.icons.index');
+        Route::post('icons',                 [IconController::class, 'store'])->name('admin.icons.store');
+        Route::patch('icons/{icon}',         [IconController::class, 'update'])->name('admin.icons.update');
+        Route::delete('icons/{icon}',        [IconController::class, 'destroy'])->name('admin.icons.destroy');
     });
 });

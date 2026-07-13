@@ -6,6 +6,8 @@
     {{-- CSRF token untuk semua form POST/PATCH/DELETE di panel ini. --}}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin') · LaundryAja</title>
+    {{-- Styles tambahan per-halaman (mis. scoped CSS Icon Manager). --}}
+    @stack('styles')
     <style>
         :root {
             --bg: #f5f7fa;
@@ -165,6 +167,9 @@
             <nav>
                 <a href="{{ route('admin.releases.index') }}" class="{{ request()->routeIs('admin.releases.*') ? 'active' : '' }}">
                     Release Manager
+                </a>
+                <a href="{{ route('admin.icons.index') }}" class="{{ request()->routeIs('admin.icons.*') ? 'active' : '' }}">
+                    Icon Manager
                 </a>
             </nav>
         </aside>

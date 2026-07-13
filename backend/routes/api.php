@@ -66,7 +66,10 @@ Route::prefix('v1')->group(function () {
         Route::prefix('master')->group(function () {
             Route::apiResource('service-categories', ServiceCategoryController::class);
             Route::apiResource('services',           ServiceController::class);
-            Route::apiResource('icons',              IconController::class);
+            // Icon: GET-only API. Create/update/delete via panel admin
+            // /admin/icons (lihat routes/web.php). Icon adalah global
+            // asset yang di-manage oleh super_admin.
+            Route::get('icons', [IconController::class, 'index']);
         });
 
         // =====================
