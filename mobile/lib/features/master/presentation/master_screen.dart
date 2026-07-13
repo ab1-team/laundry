@@ -1096,7 +1096,11 @@ class _IconPickerGrid extends ConsumerWidget {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'Belum ada icon. Buka tab Icon untuk upload.',
+              // Icon adalah global asset yang di-manage super_admin
+              // via panel web /admin/icons (bukan dari mobile). Kalau
+              // belum ada, minta hubungi admin — bukan instruksi upload
+              // dari dalam app.
+              'Belum ada icon. Hubungi admin untuk menambahkan.',
               style: AppTextStyles.bodySm.copyWith(color: context.colors.onSurfaceVariant),
             ),
           );
