@@ -94,6 +94,14 @@ class UpdateGateState extends ConsumerState<UpdateGate> {
     }
     final dismissed = await showModalBottomSheet<bool>(
       context: navCtx,
+      // Modal tidak boleh di-dismiss (tap-outside / drag-down) selama
+      // download berjalan — biar progress bar visible sampai selesai
+      // dan user lihat transisi ke install prompt. Setelah download
+      // selesai, _downloading jadi false (lihat ValueListenableBuilder
+      // di sheet yang read notifier ini) tapi showModalBottomSheet
+      // baca nilai `mandatory` satu kali saat push. Karena flow kita
+      // auto-pop modal di _startDownload setelah install trigger,
+      // user tidak akan sempat tap-outside anyway.
       isDismissible: !mandatory,
       enableDrag: !mandatory,
       isScrollControlled: true,
@@ -137,23 +145,41 @@ class UpdateGateState extends ConsumerState<UpdateGate> {
         },
       );
       if (!mounted) return;
-      // Tunda pop sampai install prompt muncul, supaya user lihat
-      // transisi "download selesai → buka installer" bukan tiba-tiba
-      // install dialog muncul tanpa context. Tanpa delay, sheet pop dan
-      // sistem install dialog race sehingga user bingung.
+      // Modal TIDAK di-pop di sini. Android install dialog (system overlay
+      // dari PackageInstaller) muncul di atas Flutter UI — modal tetap
+      // visible di belakangnya selama user interaction dengan install
+      // prompt. Auto-pop modal di sini akan trigger restart/recreate
+      // app context yang bisa hilang state form user, plus bikin
+      // transisi 'download selesai → install dialog' terasa abrupt.
       //
-      // Pakai AppRouter.rootKey.currentState langsung — Navigator.of(context)
-      // dari UpdateGate context gagal karena tidak ada Navigator ancestor
-      // (sama seperti _showUpdateSheet di atas).
-      AppRouter.rootKey.currentState?.pop();
+      // Modal di-pop manual di akhir _startDownload setelah
+      // InstallPlugin.install return (sukses/gagal/dibatalkan user).
       final res = await InstallPlugin.install(path);
+      if (!mounted) return;
       final ok = res['isSuccess'] == true;
-      if (!ok && mounted) {
+      // Pop modal setelah InstallPlugin return — user sudah selesai
+      // interact dengan Android system install dialog (tekan Install,
+      // Cancel, atau background ke launcher). Modal tetap visible
+      // selama interaction itu, jadi user tidak kehilangan context
+      // 'apa yang sedang terjadi'.
+      AppRouter.rootKey.currentState?.pop();
+      if (ok) {
+        // Install sukses → APK baru ter-install tapi app belum restart
+        // otomatis. User harus manual buka dari launcher. Kasih hint
+        // supaya mereka tidak bingung.
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memulai instalasi: ${res['errorMessage']}')),
+          const SnackBar(
+            content: Text('Update terpasang. Buka kembali aplikasi dari launcher untuk memuat versi baru.'),
+            duration: Duration(seconds: 6),
+          ),
         );
-        _downloading.value = false;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memulai instalasi: ${res['errorMessage'] ?? 'dibatalkan'}')),
+        );
       }
+      _downloading.value = false;
+      _handled = UpdateRequirement.none;
     } catch (e) {
       if (!mounted) return;
       _downloading.value = false;
