@@ -265,6 +265,9 @@
                 <a href="{{ route('admin.icons.index') }}" class="{{ request()->routeIs('admin.icons.*') ? 'active' : '' }}">
                     Icon Manager
                 </a>
+                <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                    User Manager
+                </a>
             </nav>
         </aside>
         <main class="main">

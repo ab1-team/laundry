@@ -57,11 +57,8 @@ class _LineItem {
 class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   int? _customerId;
   String? _customerName;
-  // Filter pill on the Layanan section. `null` = "Semua" (show every category).
-  // No longer drives selection — service selection is now multi-checkbox.
-  int? _categoryFilterId;
-  // Selected line items; each entry is a service the operator checked off,
-  // with its own qty. Order = display order under Layanan.
+  // Selected line items; each entry is a service the operator picked from
+  // the picker dialog, with its own qty. Order = display order under Layanan.
   final List<_LineItem> _items = [];
   // O(1) "is this service currently in _items?" lookup, mirrors _items keys.
   final Set<int> _checkedServiceIds = <int>{};
@@ -71,12 +68,6 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   // DP amount (uang muka). Only used when _payment == 'dp'. Edited via
   // the inline input that appears under the segmented control.
   final _dpCtrl = TextEditingController();
-  // In-memory search filter for the Layanan list. Filters by service
-  // name (case-insensitive contains). Combines with _categoryFilterId
-  // (both must match). No debounce — the dataset is small and the
-  // filter runs synchronously against the cached servicesProvider.
-  final _serviceSearchCtrl = TextEditingController();
-  String _serviceSearch = '';
   bool _submitting = false;
 
   @override
@@ -84,12 +75,6 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     super.initState();
     // Rebuild the "sisa" hint under the DP field as the operator types.
     _dpCtrl.addListener(() => setState(() {}));
-    // Rebuild the Layanan list as the operator types in the search box.
-    _serviceSearchCtrl.addListener(() {
-      if (_serviceSearch != _serviceSearchCtrl.text) {
-        setState(() => _serviceSearch = _serviceSearchCtrl.text);
-      }
-    });
   }
 
   // Customer search — debounced query against /customers?search=.
@@ -112,25 +97,14 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   double get _subtotal =>
       _items.fold<double>(0, (acc, i) => acc + i.subtotal);
 
-  /// Toggle a service in/out of the order. Adds with default qty=1, removes
-  /// the existing line entirely (qty + row) when toggled off — no separate
-  /// delete button needed because unchecking achieves the same effect.
-  void _toggleService(Service service) {
+  /// Remove a selected service line (called from the Layanan summary row's
+  /// "Hapus" button). Mirrors the toggle-off branch that used to live in
+  /// the old inline Layanan list — `_items` and `_checkedServiceIds` are
+  /// kept in sync so no future caller has to remember to update both.
+  void _removeService(int index) {
     setState(() {
-      if (_checkedServiceIds.contains(service.id)) {
-        _items.removeWhere((i) => i.serviceId == service.id);
-        _checkedServiceIds.remove(service.id);
-      } else {
-        _items.add(_LineItem(
-          serviceId: service.id,
-          categoryId: service.categoryId,
-          name: service.name,
-          unit: service.unit,
-          categoryIconUrl: service.effectiveIconUrl,
-          price: service.price,
-        ));
-        _checkedServiceIds.add(service.id);
-      }
+      final removed = _items.removeAt(index);
+      _checkedServiceIds.remove(removed.serviceId);
     });
   }
 
@@ -146,6 +120,47 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
       final next = _items[index].qty - 0.5;
       _items[index].qty = next < 0.5 ? 0.5 : next.toDouble();
     });
+  }
+
+  /// Open the centered service picker dialog. Multi-add: tapping a row
+  /// pops the dialog with the picked Service, the parent inserts the line,
+  /// then re-opens the dialog so the operator can keep adding until they
+  /// dismiss it manually (close icon / barrier tap).
+  ///
+  /// No-op while services or categories are still loading — the search
+  /// field is rendered with `onTap: null` in that state via the parent's
+  /// build, but guard here too in case the user manages to trigger it.
+  Future<void> _openServicePicker() async {
+    final services = ref.read(servicesProvider).value;
+    final categories = ref.read(categoriesProvider).value;
+    if (services == null || categories == null) return;
+
+    final picked = await showDialog<Service>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => _ServicePickerDialog(
+        services: services,
+        categories: categories,
+        excludeIds: _checkedServiceIds,
+      ),
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _items.add(_LineItem(
+        serviceId: picked.id,
+        categoryId: picked.categoryId,
+        name: picked.name,
+        unit: picked.unit,
+        categoryIconUrl: picked.effectiveIconUrl,
+        price: picked.price,
+      ));
+      _checkedServiceIds.add(picked.id);
+    });
+    // Re-open so the operator can keep building the order without an
+    // extra tap. The freshly-picked service is now in `excludeIds` so the
+    // list re-filters automatically. Recursion bottoms out when the user
+    // dismisses the dialog manually (returns null).
+    await _openServicePicker();
   }
 
   Future<void> _runCustomerSearch(String query) async {
@@ -240,7 +255,6 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     _notesCtrl.dispose();
     _dpCtrl.dispose();
     _searchCtrl.dispose();
-    _serviceSearchCtrl.dispose();
     _searchDebounce?.cancel();
     super.dispose();
   }
@@ -369,168 +383,92 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
           const SizedBox(height: 20),
           Text('Layanan', style: AppTextStyles.titleLg.copyWith(color: context.colors.primary)),
           const SizedBox(height: 8),
-          // Search box for filtering services by name. In-memory only
-          // — combines with the category chip filter below (both must
-          // match). Empty input shows the full list (subject to the
-          // category filter alone).
-          AppTextField(
-            label: '',
-            hint: 'Cari layanan...',
-            prefixIcon: Icons.search,
-            variant: AppTextFieldVariant.search,
-            controller: _serviceSearchCtrl,
-          ),
-          const SizedBox(height: 12),
-          // Category filter row. "Semua" pill = null filter (show every
-          // category's services, grouped). Tapping a category pill filters
-          // the visible services to that one category only. Multi-select on
-          // services lives inside the list below.
-          categoriesAsync.when(
-            loading: () => const SizedBox(height: 40, child: Center(child: CircularProgressIndicator())),
-            error: (e, _) => Text('Gagal: $e', style: TextStyle(color: context.colors.error)),
-            data: (cats) {
-              if (cats.isEmpty) {
-                return Text('Belum ada kategori. Buat di tab Master Data.',
-                    style: AppTextStyles.bodyMd.copyWith(color: context.colors.onSurfaceVariant));
-              }
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _CategoryChip(
-                      label: 'Semua',
-                      selected: _categoryFilterId == null,
-                      onTap: () => setState(() => _categoryFilterId = null),
+          // Search field as a tappable trigger into the picker dialog.
+          // We don't filter in place anymore — Layanan only shows selected
+          // services, and adding more happens inside the centered picker
+          // (multi-add). The field is rendered inside a Material+InkWell
+          // so the whole bar gets the search-bar ripple + a single tap
+          // target. While services are loading, replace the InkWell
+          // with a spinner (centered) so the user sees why taps are inert.
+          SizedBox(
+            height: 48,
+            child: Stack(
+              children: [
+                // Underlying visual: the AppTextField (decoration only —
+                // it's disabled and ignores input). Sits at z=0 so the
+                // InkWell above can paint its ripple on top.
+                IgnorePointer(
+                  child: Opacity(
+                    opacity: servicesAsync.value == null ? 0.4 : 1.0,
+                    child: AppTextField(
+                      label: '',
+                      hint: 'Cari atau pilih layanan...',
+                      prefixIcon: Icons.search,
+                      variant: AppTextFieldVariant.search,
+                      // No controller: the field is purely decorative.
+                      // We don't want user typing to drive any state.
+                      enabled: false,
                     ),
-                    const SizedBox(width: 8),
-                    for (final c in cats) ...[
-                      _CategoryChip(
-                        label: c.name,
-                        selected: _categoryFilterId == c.id,
-                        onTap: () => setState(() => _categoryFilterId = c.id),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  ],
+                  ),
                 ),
-              );
-            },
+                if (servicesAsync.value == null)
+                  const Positioned.fill(
+                    child: Center(
+                      child: SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    ),
+                  )
+                else
+                  Positioned.fill(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.input),
+                        onTap: _openServicePicker,
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
-          // Service list, grouped by category. Each row is a checkbox card;
-          // checking a row expands an inline qty stepper below the name.
-          servicesAsync.when(
-            loading: () => const SizedBox.shrink(),
-            error: (e, _) => Text('Gagal: $e', style: TextStyle(color: context.colors.error)),
-            data: (all) {
-              if (all.isEmpty) {
-                return Text('Belum ada layanan.',
-                    style: AppTextStyles.bodyMd.copyWith(color: context.colors.onSurfaceVariant));
-              }
-              // Group by categoryId; preserve category order via Map iteration
-              // (insertion order) so the list mirrors the filter pills above.
-              // Apply category filter first, then name search (both must match).
-              final q = _serviceSearch.trim().toLowerCase();
-              final filtered = all.where((s) {
-                if (_categoryFilterId != null && s.categoryId != _categoryFilterId) return false;
-                if (q.isNotEmpty && !s.name.toLowerCase().contains(q)) return false;
-                return true;
-              }).toList();
-              // Empty-state for "no rows match the current filter combo".
-              // Distinguishes "no services defined" (handled above) from
-              // "services exist but filter narrows to none" — so the user
-              // knows to clear the search/category instead of creating a
-              // new service.
-              if (filtered.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    'Tidak ada layanan yang cocok dengan pencarian.',
-                    style: AppTextStyles.bodyMd.copyWith(color: context.colors.onSurfaceVariant),
-                  ),
-                );
-              }
-              final groups = <int, List<Service>>{};
-              for (final s in filtered) {
-                groups.putIfAbsent(s.categoryId, () => <Service>[]).add(s);
-              }
-              // When viewing "Semua", sort the category groups by the
-              // category's display order (sort_order) so the order
-              // matches the filter pills above and what the owner set
-              // in Master Data. With a single-category filter the
-              // groups Map only has one entry so sort is a no-op.
-              List<MapEntry<int, List<Service>>> sortedEntries = groups.entries.toList();
-              if (_categoryFilterId == null) {
-                final catsById = {
-                  for (final c in categoriesAsync.value ?? const <ServiceCategory>[]) c.id: c,
-                };
-                sortedEntries.sort((a, b) {
-                  final ao = catsById[a.key]?.sortOrder ?? 0;
-                  final bo = catsById[b.key]?.sortOrder ?? 0;
-                  if (ao != bo) return ao.compareTo(bo);
-                  // Tie-break by name so equal sort_order values get a
-                  // deterministic (alphabetical) ordering.
-                  final an = catsById[a.key]?.name ?? '';
-                  final bn = catsById[b.key]?.name ?? '';
-                  return an.compareTo(bn);
-                });
-              }
-              return ConstrainedBox(
-                // Cap the visible service list so a tenant with many
-                // services doesn't push the payment/total sections off
-                // the screen. The list scrolls internally; the outer
-                // page ListView continues to drive the rest of the form.
-                constraints: const BoxConstraints(maxHeight: 360),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final entry in sortedEntries) ...[
-                        // Category section title only renders when
-                        // viewing "Semua" (multiple categories shown
-                        // at once). When a single category is filtered
-                        // in, the title is redundant — the filter pill
-                        // already tells the user what they're looking
-                        // at — so we hide it for a cleaner list.
-                        if (_categoryFilterId == null)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-                            child: Row(
-                              children: [
-                                _OrderCategoryIcon(
-                                  // Prefer service.icon (override) kalau
-                                  // ada; kalau tidak, ambil icon kategori
-                                  // lewat catsById lookup di bawah.
-                                  iconUrl: entry.value.first.effectiveIconUrl,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  // Local label fallback — the service model exposes
-                                  // categoryName only when joined server-side; for the
-                                  // standalone master load we fall back to the
-                                  // category filter chip the user is currently inside.
-                                  // In practice backend joins always populate this.
-                                  entry.value.first.categoryName ?? _categoryFilterLabel(categoriesAsync, entry.key),
-                                  style: AppTextStyles.labelSm.copyWith(
-                                    color: context.colors.outline,
-                                    letterSpacing: 1.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        for (final s in entry.value)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _buildServiceRow(s),
-                          ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
+          // Body: empty-state card when nothing picked, otherwise the
+          // summary header + selected-lines list.
+          if (_items.isEmpty)
+            _EmptyLayananCard(onTap: _openServicePicker)
+          else ...[
+            _LayananSummary(count: _items.length, total: _subtotal),
+            const SizedBox(height: 12),
+            for (var i = 0; i < _items.length; i++) ...[
+              _buildSelectedLineRow(i),
+              if (i < _items.length - 1) const SizedBox(height: 8),
+            ],
+          ],
+          // Surface load errors inline so the user knows why the picker
+          // is unusable. The search bar above silently swallows taps in
+          // error state, so the message is what needs their attention.
+          servicesAsync.maybeWhen(
+            error: (e, _) => Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                'Gagal memuat layanan: $e',
+                style: AppTextStyles.bodyMd.copyWith(color: context.colors.error),
+              ),
+            ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+          categoriesAsync.maybeWhen(
+            error: (e, _) => Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Gagal memuat kategori: $e',
+                style: AppTextStyles.bodyMd.copyWith(color: context.colors.error),
+              ),
+            ),
+            orElse: () => const SizedBox.shrink(),
           ),
 
           const SizedBox(height: 20),
@@ -695,29 +633,15 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     if (created != null && mounted) _pickCustomer(created);
   }
 
-  String _categoryFilterLabel(AsyncValue<List<ServiceCategory>> categoriesAsync, int id) {
-    return categoriesAsync.maybeWhen(
-      data: (cats) => cats.firstWhere((c) => c.id == id, orElse: () => cats.first).name,
-      orElse: () => 'Kategori',
-    );
-  }
-
-  Widget _buildServiceRow(Service s) {
-    final checked = _checkedServiceIds.contains(s.id);
-    final idx = _items.indexWhere((i) => i.serviceId == s.id);
-    final line = idx >= 0 ? _items[idx] : null;
+  Widget _buildSelectedLineRow(int index) {
+    final item = _items[index];
     final rupiah = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return Container(
       decoration: BoxDecoration(
-        // Checked rows use the primary fill so the user reads the
-        // selection at a glance; unchecked rows sit on white.
-        color: checked ? context.colors.primary : context.colors.surface,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(AppRadius.input),
-        border: Border.all(
-          color: checked ? context.colors.primary : context.colors.outlineVariant,
-          width: 1,
-        ),
+        border: Border.all(color: context.colors.outlineVariant, width: 1),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.06),
@@ -726,99 +650,96 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.input),
-          onTap: () => _toggleService(s),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row: thumbnail + name + price/unit on the left,
+            // compact qty stepper on the right.
+            Row(
               children: [
-                Row(
-                  children: [
-                    // Thumbnail icon — kalau service ada icon, tampil
-                    // sebagai image 28x28 rounded. Fallback ke icon
-                    // kategori via effectiveIconUrl atau placeholder
-                    // laundry icon.
-                    _OrderCategoryIcon(
-                      iconUrl: s.effectiveIconUrl,
-                      size: 28,
-                      rounded: true,
-                      onPrimary: checked,
-                    ),
-                    const SizedBox(width: 10),
-                    // No leading checkbox icon — selection is conveyed by
-                    // the row's primary fill + bold text. Tapping anywhere
-                    // on the row toggles the selection.
-                    Expanded(
-                      child: Text(
-                        s.name,
-                        style: AppTextStyles.bodyLg.copyWith(
-                          color: checked ? AppColors.onPrimary : context.colors.onSurface,
-                          fontWeight: checked ? FontWeight.w600 : FontWeight.w400,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${rupiah.format(s.price)} / ${s.unit}',
-                      style: AppTextStyles.labelLg.copyWith(
-                        color: checked ? AppColors.onPrimary : context.colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                _OrderCategoryIcon(
+                  iconUrl: item.categoryIconUrl,
+                  size: 36,
+                  rounded: true,
                 ),
-                // Expanded section only renders for checked rows. Animates
-                // in via AnimatedSize so toggling feels smooth.
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 150),
-                  curve: Curves.easeInOut,
-                  child: line == null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Row(
-                            children: [
-                              _MiniStepperBtn(
-                                icon: Icons.remove,
-                                onTap: () => _decrementQty(idx),
-                              ),
-                              const SizedBox(width: 12),
-                              SizedBox(
-                                width: 48,
-                                child: Text(
-                                  line.qty.toStringAsFixed(1),
-                                  textAlign: TextAlign.center,
-                                  style: AppTextStyles.titleLg.copyWith(color: AppColors.onPrimary),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              _MiniStepperBtn(
-                                icon: Icons.add,
-                                onTap: () => _incrementQty(idx),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                line.unit,
-                                style: AppTextStyles.labelLg.copyWith(color: AppColors.onPrimary),
-                              ),
-                              const Spacer(),
-                              Text(
-                                rupiah.format(line.subtotal),
-                                style: AppTextStyles.bodyLg.copyWith(
-                                  color: AppColors.onPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name,
+                        style: AppTextStyles.bodyLg,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${rupiah.format(item.price)} / ${item.unit}',
+                        style: AppTextStyles.bodySm.copyWith(
+                          color: context.colors.onSurfaceVariant,
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _MiniStepperBtn(
+                  icon: Icons.remove,
+                  onTap: () => _decrementQty(index),
+                  onPrimary: false,
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 36,
+                  child: Text(
+                    item.qty.toStringAsFixed(1),
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.titleLg.copyWith(color: context.colors.onSurface),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _MiniStepperBtn(
+                  icon: Icons.add,
+                  onTap: () => _incrementQty(index),
+                  onPrimary: false,
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 8),
+            // Bottom row: subtotal + Hapus button. Separated from the
+            // top row by a thin divider so the destructive action reads
+            // as a discrete affordance rather than blending into the
+            // stepper controls.
+            const Divider(height: 1, thickness: 1),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  'Subtotal ${rupiah.format(item.subtotal)}',
+                  style: AppTextStyles.bodyMd.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => _removeService(index),
+                  icon: Icon(Icons.delete_outline, size: 16, color: context.colors.error),
+                  label: Text(
+                    'Hapus',
+                    style: AppTextStyles.labelLg.copyWith(color: context.colors.error),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -862,17 +783,28 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
-// Compact 32x32 stepper button used inside each checked service row.
-// White-on-primary tint ensures it reads against the primary-fill
-// selected row background.
+// Compact 32x32 stepper button. `onPrimary: true` (default) tints white-on-primary
+// for use against the old primary-fill selected row background. Pass
+// `onPrimary: false` to render on a neutral surface (secondaryContainer fill
+// + secondary icon) — used inside the Layanan summary rows which sit on a
+// plain surface background.
 class _MiniStepperBtn extends StatelessWidget {
-  const _MiniStepperBtn({required this.icon, required this.onTap});
+  const _MiniStepperBtn({
+    required this.icon,
+    required this.onTap,
+    this.onPrimary = true,
+  });
   final IconData icon;
   final VoidCallback onTap;
+  final bool onPrimary;
   @override
   Widget build(BuildContext context) {
+    final bg = onPrimary
+        ? AppColors.onPrimary.withValues(alpha: 0.18)
+        : AppColors.secondaryContainer;
+    final fg = onPrimary ? AppColors.onPrimary : AppColors.secondary;
     return Material(
-      color: AppColors.onPrimary.withValues(alpha: 0.18),
+      color: bg,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -881,7 +813,7 @@ class _MiniStepperBtn extends StatelessWidget {
           width: 32,
           height: 32,
           alignment: Alignment.center,
-          child: Icon(icon, color: AppColors.onPrimary, size: 18),
+          child: Icon(icon, color: fg, size: 18),
         ),
       ),
     );
@@ -1142,33 +1074,385 @@ class _AddCustomerSheetState extends ConsumerState<_AddCustomerSheet> {
   }
 }
 
+// ===========================================
+// Empty-state card for the Layanan section
+// ===========================================
+
+/// Outlined CTA card shown when no service has been picked yet. Whole card
+/// is tappable so the user has a large, obvious target to open the picker.
+class _EmptyLayananCard extends StatelessWidget {
+  const _EmptyLayananCard({required this.onTap});
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.colors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.input),
+            border: Border.all(color: context.colors.outlineVariant, width: 1),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                Icons.local_laundry_service_outlined,
+                size: 32,
+                color: context.colors.onSurfaceVariant,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Belum ada layanan dipilih',
+                style: AppTextStyles.bodyLg,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Tap untuk memilih',
+                style: AppTextStyles.bodyMd.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===========================================
+// Layanan summary header (count + subtotal)
+// ===========================================
+
+/// Compact header above the selected-lines list. Shows total item count
+/// on the left and the running subtotal on the right so the user can see
+/// at a glance how the order is shaping up before reaching the bottom
+/// "Total Tagihan" row.
+class _LayananSummary extends StatelessWidget {
+  const _LayananSummary({required this.count, required this.total});
+  final int count;
+  final double total;
+  @override
+  Widget build(BuildContext context) {
+    final rupiah = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(
+              '$count layanan',
+              style: AppTextStyles.bodyMd.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              rupiah.format(total),
+              style: AppTextStyles.titleLg.copyWith(color: context.colors.primary),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Divider(height: 1, thickness: 1),
+      ],
+    );
+  }
+}
+
+// ===========================================
+// Service picker dialog (multi-add)
+// ===========================================
+
+/// Centered modal picker for adding services to an order.
+///
+/// Multi-add semantics: tapping a row pops the dialog with the picked
+/// [Service]; the parent screen inserts it into `_items` and re-opens
+/// the dialog so the operator can keep selecting without an extra tap.
+/// The freshly-picked service is in `excludeIds` so the list re-filters
+/// automatically on re-open. Cancel by tapping the close icon or the
+/// barrier (returns null → parent does NOT re-open).
+///
+/// `excludeIds` is the set of service ids already in the order; matching
+/// services are hidden from the picker list entirely.
+class _ServicePickerDialog extends StatefulWidget {
+  const _ServicePickerDialog({
+    required this.services,
+    required this.categories,
+    required this.excludeIds,
+  });
+  final List<Service> services;
+  final List<ServiceCategory> categories;
+  final Set<int> excludeIds;
+
+  @override
+  State<_ServicePickerDialog> createState() => _ServicePickerDialogState();
+}
+
+class _ServicePickerDialogState extends State<_ServicePickerDialog> {
+  // `null` = "Semua". Moved here from the parent screen so the picker's
+  // filter state is fully self-contained and resets on every open.
+  int? _categoryFilterId;
+  final _searchCtrl = TextEditingController();
+  String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(() {
+      if (_search != _searchCtrl.text) {
+        setState(() => _search = _searchCtrl.text);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onPick(Service s) {
+    // Return the picked service to the parent via Navigator.pop. The
+    // parent handles the actual insertion + auto re-open.
+    Navigator.of(context).pop(s);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _search.trim().toLowerCase();
+    // Lookup table for category sort order; fall back gracefully when a
+    // service references a category the picker doesn't know about (e.g.
+    // the master load returned more services than categories because of
+    // a partial eager-load).
+    final catsById = {for (final c in widget.categories) c.id: c};
+    final filtered = widget.services.where((s) {
+      if (widget.excludeIds.contains(s.id)) return false;
+      if (_categoryFilterId != null && s.categoryId != _categoryFilterId) return false;
+      if (q.isNotEmpty && !s.name.toLowerCase().contains(q)) return false;
+      return true;
+    }).toList()
+      // Stable, predictable order: category sortOrder (matches the pill
+      // order above), then alphabetical name. Services whose category
+      // isn't in `catsById` sink to the bottom via sortOrder default 9999.
+      ..sort((a, b) {
+        final ao = catsById[a.categoryId]?.sortOrder ?? 9999;
+        final bo = catsById[b.categoryId]?.sortOrder ?? 9999;
+        if (ao != bo) return ao.compareTo(bo);
+        return a.name.compareTo(b.name);
+      });
+
+    // Three distinct empty states so the message matches the actual reason:
+    //   1. No services defined at all.
+    //   2. All defined services are already in the order.
+    //   3. Filter narrows the available list to zero.
+    String? emptyMessage;
+    if (widget.services.isEmpty) {
+      emptyMessage = 'Belum ada layanan. Buat di tab Master Data.';
+    } else if (widget.services.every((s) => widget.excludeIds.contains(s.id))) {
+      emptyMessage = 'Semua layanan sudah dipilih.';
+    } else if (filtered.isEmpty) {
+      emptyMessage = 'Tidak ada layanan yang cocok dengan pencarian.';
+    }
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 600, maxWidth: 520),
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.sheet),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Pinned header: title + close. Pinned (not in scroll view)
+            // so the user always has an obvious escape hatch even while
+            // scrolling a long result list.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 8, 4),
+              child: Row(
+                children: [
+                  Text('Pilih Layanan', style: AppTextStyles.titleLg),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Tutup',
+                  ),
+                ],
+              ),
+            ),
+            // Pinned search field. AppTextField.outlined (not search) here
+            // because the dialog already provides its own surface.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: AppTextField(
+                label: '',
+                hint: 'Cari layanan...',
+                prefixIcon: Icons.search,
+                variant: AppTextFieldVariant.search,
+                controller: _searchCtrl,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Pinned category pills. Horizontal scroll so the row never
+            // wraps to multiple lines regardless of how many categories
+            // the tenant has.
+            SizedBox(
+              height: 44,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _CategoryChip(
+                      label: 'Semua',
+                      selected: _categoryFilterId == null,
+                      onTap: () => setState(() => _categoryFilterId = null),
+                    ),
+                    const SizedBox(width: 8),
+                    for (final c in widget.categories) ...[
+                      _CategoryChip(
+                        label: c.name,
+                        selected: _categoryFilterId == c.id,
+                        onTap: () => setState(() => _categoryFilterId = c.id),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1, thickness: 1),
+            // Scrollable result list. Expanded so it claims the remaining
+            // dialog height; ListView.separated for 8px gaps between rows
+            // that match the main Layanan list spacing.
+            Flexible(
+              child: emptyMessage != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(
+                          emptyMessage,
+                          style: AppTextStyles.bodyMd.copyWith(
+                            color: context.colors.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _PickerServiceTile(
+                        service: filtered[i],
+                        onTap: () => _onPick(filtered[i]),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Single row inside the picker dialog. Tappable as a whole; visual
+/// feedback comes from the InkWell ripple + the trailing `+` icon (so
+/// the affordance reads as "add" rather than "select").
+class _PickerServiceTile extends StatelessWidget {
+  const _PickerServiceTile({required this.service, required this.onTap});
+  final Service service;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final rupiah = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    return Material(
+      color: context.colors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.input),
+            border: Border.all(color: context.colors.outlineVariant, width: 1),
+          ),
+          child: Row(
+            children: [
+              _OrderCategoryIcon(
+                iconUrl: service.effectiveIconUrl,
+                size: 36,
+                rounded: true,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      service.name,
+                      style: AppTextStyles.bodyLg,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${rupiah.format(service.price)} / ${service.unit}',
+                      style: AppTextStyles.bodySm.copyWith(
+                        color: context.colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.add_circle_outline,
+                size: 22,
+                color: context.colors.primary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Compact icon thumbnail untuk daftar Layanan. Render gambar dari
 /// icon_url kalau ada; fallback ke Material icon kalau URL null/kosong/
-/// gagal load. Saat [onPrimary] true (service row yang dipilih),
-/// background & fallback tint di-adjust supaya tetap kebaca di atas
-/// primary fill.
+/// gagal load. Background pakai secondaryContainer dengan icon tint
+/// secondary — kebaca di atas surface putih Layanan row + picker tile.
 class _OrderCategoryIcon extends StatelessWidget {
   const _OrderCategoryIcon({
     required this.iconUrl,
     this.size = 24,
     this.rounded = false,
-    this.onPrimary = false,
   });
 
   final String? iconUrl;
   final double size;
   final bool rounded;
-  final bool onPrimary;
 
   @override
   Widget build(BuildContext context) {
     final hasImage = iconUrl != null && iconUrl!.isNotEmpty;
-    final bg = onPrimary
-        ? AppColors.onPrimary.withValues(alpha: 0.18)
-        : AppColors.secondaryContainer;
-    final fallbackIcon = onPrimary
-        ? AppColors.onPrimary
-        : AppColors.secondary;
+    const bg = AppColors.secondaryContainer;
+    const fallbackIcon = AppColors.secondary;
     return Container(
       width: size,
       height: size,

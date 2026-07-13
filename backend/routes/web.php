@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\IconController;
 use App\Http\Controllers\Admin\ReleaseController;
+use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
 // Landing publik tetap welcome.
@@ -38,5 +39,14 @@ Route::prefix('admin')->group(function () {
         Route::post('icons',                 [IconController::class, 'store'])->name('admin.icons.store');
         Route::patch('icons/{icon}',         [IconController::class, 'update'])->name('admin.icons.update');
         Route::delete('icons/{icon}',        [IconController::class, 'destroy'])->name('admin.icons.destroy');
+
+        // User Manager — CRUD semua user (super_admin, owner, operator).
+        // Lihat Admin\UserController. Endpoint password terpisah supaya
+        // form edit profil tidak tercampur dengan reset password.
+        Route::get('users',                    [UserController::class, 'index'])->name('admin.users.index');
+        Route::post('users',                   [UserController::class, 'store'])->name('admin.users.store');
+        Route::patch('users/{user}',           [UserController::class, 'update'])->name('admin.users.update');
+        Route::patch('users/{user}/password',  [UserController::class, 'resetPassword'])->name('admin.users.password');
+        Route::delete('users/{user}',          [UserController::class, 'destroy'])->name('admin.users.destroy');
     });
 });
