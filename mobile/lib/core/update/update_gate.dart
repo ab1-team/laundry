@@ -64,10 +64,20 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
   Future<void> _showUpdateSheet(AppVersionInfo info, bool mandatory) async {
     final dismissed = await showModalBottomSheet<bool>(
       context: context,
+      // UpdateGate dipasang via `builder` callback MaterialApp.router,
+      // sehingga `context` miliknya ada di atas Navigator child router
+      // (GoRouter Navigator). Default `useRootNavigator: false` cari
+      // Navigator terdekat di atas context — Navigator child router
+      // ada di sub-tree, bukan ancestor → crash 'context that does
+      // not include a Navigator'.
+      // useRootNavigator: true pakai Navigator root dari MaterialApp
+      // yang ada di atas UpdateGate, supaya sheet push berhasil.
+      useRootNavigator: true,
       isDismissible: !mandatory,
       enableDrag: !mandatory,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (_) => _UpdateSheet(
         info: info,
         mandatory: mandatory,
