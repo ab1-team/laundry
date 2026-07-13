@@ -49,9 +49,21 @@ class UserController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Stats untuk header — dihitung di luar filter supaya admin
+        // selalu lihat total keseluruhan, bukan cuma hasil filter.
+        $stats = [
+            'total'       => User::count(),
+            'active'      => User::where('is_active', true)->count(),
+            'super_admin' => User::where('role', User::ROLE_SUPER_ADMIN)->count(),
+            'owners'      => User::where('role', User::ROLE_OWNER)->count(),
+            'operators'   => User::where('role', User::ROLE_OPERATOR)->count(),
+            'tenants'     => Tenant::count(),
+        ];
+
         return view('admin.users', [
             'users'   => $users,
             'tenants' => $tenants,
+            'stats'   => $stats,
             'filters' => [
                 'tenant_id' => $request->input('tenant_id'),
                 'role'      => $request->input('role'),

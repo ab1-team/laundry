@@ -17,6 +17,74 @@
         .role-owner { background: #dbeafe; color: #1e40af; }
         .role-operator { background: #f3f4f6; color: #374151; }
 
+        /* Stat tiles — ringkasan di atas halaman supaya admin langsung
+           lihat kondisi user base tanpa scroll ke tabel. */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stat-tile {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+        .stat-tile .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .stat-tile .value { font-size: 24px; font-weight: 700; line-height: 1.1; margin-top: 4px; color: var(--text); }
+        .stat-tile .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+        .stat-tile.primary { border-left: 3px solid var(--primary); }
+        .stat-tile.success { border-left: 3px solid var(--success); }
+        .stat-tile.muted { border-left: 3px solid var(--border); }
+        .stat-tile.warn   { border-left: 3px solid var(--warning); }
+
+        /* Page intro — paragraf pendek di bawah heading. */
+        .page-intro { color: var(--muted); font-size: 14px; margin: 0 0 20px; max-width: 720px; }
+
+        /* Section heading + supporting hint di header card. */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .card-header h3 { margin: 0; font-size: 16px; }
+        .card-header .hint { color: var(--muted); font-size: 12px; }
+
+        /* Empty state — lebih dari sekadar teks; ada CTA supaya admin
+           tidak bingung saat tabel kosong (mis. tenant baru). */
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--muted);
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            background: #fafbfc;
+        }
+        .empty-state .emoji { font-size: 36px; margin-bottom: 8px; }
+        .empty-state h4 { margin: 0 0 6px; font-size: 15px; color: var(--text); font-weight: 600; }
+        .empty-state p { margin: 0 0 16px; font-size: 13px; }
+
+        /* Helper callout di form create — penjelasan kenapa tenant_id
+           wajib/terkunci tergantung role. */
+        .helper-callout {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 10px 12px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #1e40af;
+            margin: 12px 0 0;
+        }
+        .helper-callout .icon { flex-shrink: 0; font-size: 16px; line-height: 1.4; }
+        .helper-callout strong { color: #1e3a8a; }
+
         /* Baris yang sedang diedit — kasih background kuning lembut + auto-scroll
            supaya admin langsung lihat form edit yang terbuka. */
         tr.editing-row { background: #fffbeb; }
@@ -98,9 +166,45 @@
 
 @section('content')
 
+    <p class="page-intro">
+        Kelola akun <strong>super admin</strong>, <strong>owner</strong>, dan <strong>operator</strong> di semua tenant. Onboarding user baru, ubah role/nonaktifkan akun, atau reset password lewat sini. Setelah membuat user, berikan password awal ke mereka lewat komunikasi terpisah — sistem tidak mengirim email.
+    </p>
+
+    {{-- ====== Stats ringkasan ====== --}}
+    <div class="stats-row">
+        <div class="stat-tile primary">
+            <div class="label">Total user</div>
+            <div class="value">{{ $stats['total'] }}</div>
+            <div class="sub">{{ $stats['active'] }} aktif · {{ $stats['total'] - $stats['active'] }} nonaktif</div>
+        </div>
+        <div class="stat-tile muted">
+            <div class="label">Super admin</div>
+            <div class="value">{{ $stats['super_admin'] }}</div>
+            <div class="sub">Akses global ke panel</div>
+        </div>
+        <div class="stat-tile muted">
+            <div class="label">Owner</div>
+            <div class="value">{{ $stats['owners'] }}</div>
+            <div class="sub">Pemilik / admin tenant</div>
+        </div>
+        <div class="stat-tile muted">
+            <div class="label">Operator</div>
+            <div class="value">{{ $stats['operators'] }}</div>
+            <div class="sub">Staf operasional tenant</div>
+        </div>
+        <div class="stat-tile success">
+            <div class="label">Tenant aktif</div>
+            <div class="value">{{ $stats['tenants'] }}</div>
+            <div class="sub">Tersedia untuk assign owner/operator</div>
+        </div>
+    </div>
+
     {{-- ====== Filter ====== --}}
     <div class="card">
-        <h3 style="margin: 0 0 16px; font-size: 16px;">Filter</h3>
+        <div class="card-header">
+            <h3>Filter</h3>
+            <span class="hint">Saring tabel di bawah. Filter disimpan di URL jadi bisa dishare.</span>
+        </div>
         <form method="GET" action="{{ route('admin.users.index') }}" class="filter-form">
             <div class="field search">
                 <label for="q">Cari nama / email</label>
@@ -144,7 +248,10 @@
 
     {{-- ====== Form Tambah User ====== --}}
     <div class="card">
-        <h3 style="margin: 0 0 16px; font-size: 16px;">Tambah user baru</h3>
+        <div class="card-header">
+            <h3>Tambah user baru</h3>
+            <span class="hint">Buat akun untuk owner/operator tenant baru, atau tambah super admin lain.</span>
+        </div>
         <form method="POST" action="{{ route('admin.users.store') }}">
             @csrf
             <div class="field-row">
@@ -185,7 +292,15 @@
                             <option value="{{ $t->id }}" {{ (string) old('tenant_id') === (string) $t->id ? 'selected' : '' }}>{{ $t->name }}</option>
                         @endforeach
                     </select>
-                    <p class="muted" style="margin: 4px 0 0;">Wajib untuk owner/operator, kosong untuk super_admin.</p>
+                </div>
+            </div>
+            <div class="helper-callout">
+                <span class="icon">ℹ️</span>
+                <div>
+                    <strong>Hubungan role ↔ tenant:</strong>
+                    <strong>super_admin</strong> tidak terikat tenant (akses global).
+                    <strong>owner</strong> dan <strong>operator</strong> wajib terikat satu tenant.
+                    Pilih role dulu — field tenant akan otomatis nonaktif saat role = super_admin.
                 </div>
             </div>
             <div class="field checkbox-row">
@@ -200,10 +315,25 @@
 
     {{-- ====== Tabel User ====== --}}
     <div class="card">
-        <h3 style="margin: 0 0 16px; font-size: 16px;">Daftar user</h3>
+        <div class="card-header">
+            <h3>Daftar user</h3>
+            @if ($users->total() > 0)
+                <span class="hint">Menampilkan {{ $users->count() }} dari {{ $users->total() }} user</span>
+            @endif
+        </div>
 
         @if ($users->isEmpty())
-            <div class="empty">Belum ada user yang cocok dengan filter. Coba ubah filter atau tambah user baru.</div>
+            <div class="empty-state">
+                <div class="emoji">👥</div>
+                @if (collect($filters)->filter()->isNotEmpty())
+                    <h4>Tidak ada user yang cocok dengan filter</h4>
+                    <p>Coba perluas pencarian — misalnya reset filter, atau ganti role/tenant.</p>
+                    <a href="{{ route('admin.users.index') }}" class="btn btn-outline btn-sm">Reset filter</a>
+                @else
+                    <h4>Belum ada user di sistem</h4>
+                    <p>Mulai dengan tambah user pertama lewat form di atas. Owner dan operator wajib terikat satu tenant.</p>
+                @endif
+            </div>
         @else
             <table>
                 <thead>
