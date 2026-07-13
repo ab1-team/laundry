@@ -85,6 +85,30 @@
         .helper-callout .icon { flex-shrink: 0; font-size: 16px; line-height: 1.4; }
         .helper-callout strong { color: #1e3a8a; }
 
+        /* Fieldset grouping — bagi form jadi section "Profil Akun" dan
+           "Hak Akses" supaya field-field related terlihat jelas. */
+        .form-section { margin-bottom: 20px; }
+        .form-section:last-child { margin-bottom: 0; }
+        .form-section .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .form-section .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        .form-section .field { margin-bottom: 12px; }
+        .form-section .field-row > .field { margin-bottom: 12px; }
+
         /* Baris yang sedang diedit — kasih background kuning lembut + auto-scroll
            supaya admin langsung lihat form edit yang terbuka. */
         tr.editing-row { background: #fffbeb; }
@@ -152,6 +176,21 @@
                 const tenantSel = form.querySelector('select[data-tenant-select]');
                 toggleTenantRequired(roleSel, tenantSel);
                 roleSel.addEventListener('change', () => toggleTenantRequired(roleSel, tenantSel));
+            });
+
+            // Tandai select yang masih di placeholder value (value "")
+            // dengan class .placeholder-selected → CSS kasih warna muted
+            // dan border dashed. Hapus class begitu user pilih value nyata.
+            function refreshPlaceholderState(sel) {
+                if (sel.value === '' || sel.value === null) {
+                    sel.classList.add('placeholder-selected');
+                } else {
+                    sel.classList.remove('placeholder-selected');
+                }
+            }
+            document.querySelectorAll('select').forEach(sel => {
+                refreshPlaceholderState(sel);
+                sel.addEventListener('change', () => refreshPlaceholderState(sel));
             });
 
             // Auto-scroll ke baris edit yang sedang dibuka, supaya admin
@@ -294,15 +333,84 @@
                     </select>
                 </div>
             </div>
-            <div class="helper-callout">
-                <span class="icon">ℹ️</span>
-                <div>
-                    <strong>Hubungan role ↔ tenant:</strong>
-                    <strong>super_admin</strong> tidak terikat tenant (akses global).
-                    <strong>owner</strong> dan <strong>operator</strong> wajib terikat satu tenant.
-                    Pilih role dulu — field tenant akan otomatis nonaktif saat role = super_admin.
+            {{-- ====== Form Tambah User ====== --}}
+    <div class="card">
+        <div class="card-header">
+            <h3>Tambah user baru</h3>
+            <span class="hint">Buat akun untuk owner/operator tenant baru, atau tambah super admin lain.</span>
+        </div>
+        <form method="POST" action="{{ route('admin.users.store') }}" id="form-create-user">
+            @csrf
+
+            {{-- Section: Profil Akun --}}
+            <div class="form-section">
+                <div class="section-label">Profil Akun</div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="name">Nama</label>
+                        <input id="name" name="name" type="text" value="{{ old('name') }}" required>
+                    </div>
+                    <div class="field">
+                        <label for="email">Email</label>
+                        <input id="email" name="email" type="email" value="{{ old('email') }}" required>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="password">Password <span class="muted" style="font-weight: 400;">(min. 8 karakter)</span></label>
+                        <input id="password" name="password" type="password" minlength="8" required>
+                    </div>
+                    <div class="field">
+                        <label for="password_confirmation">Konfirmasi password</label>
+                        <input id="password_confirmation" name="password_confirmation" type="password" minlength="8" required>
+                    </div>
                 </div>
             </div>
+
+            {{-- Section: Hak Akses --}}
+            <div class="form-section">
+                <div class="section-label">Hak Akses</div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="role_create">Role</label>
+                        <select id="role_create" name="role" data-role-select required>
+                            <option value="">— Pilih role —</option>
+                            @php $oldRole = old('role'); @endphp
+                            <option value="super_admin" {{ $oldRole === 'super_admin' ? 'selected' : '' }}>super_admin (akses global)</option>
+                            <option value="owner" {{ $oldRole === 'owner' ? 'selected' : '' }}>owner (pemilik tenant)</option>
+                            <option value="operator" {{ $oldRole === 'operator' ? 'selected' : '' }}>operator (staf tenant)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="tenant_id_create">Tenant <span class="muted" style="font-weight: 400;">(wajib untuk owner/operator)</span></label>
+                        <select id="tenant_id_create" name="tenant_id" data-tenant-select>
+                            <option value="">— Pilih tenant —</option>
+                            @foreach ($tenants as $t)
+                                <option value="{{ $t->id }}" {{ (string) old('tenant_id') === (string) $t->id ? 'selected' : '' }}>{{ $t->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="helper-callout">
+                    <span class="icon">ℹ️</span>
+                    <div>
+                        <strong>Hubungan role ↔ tenant:</strong>
+                        <strong>super_admin</strong> tidak terikat tenant (akses global).
+                        <strong>owner</strong> dan <strong>operator</strong> wajib terikat satu tenant.
+                        Pilih role dulu — field tenant akan otomatis nonaktif saat role = super_admin.
+                    </div>
+                </div>
+            </div>
+
+            <div class="field checkbox-row" style="margin-top: 8px;">
+                <input id="is_active_create" name="is_active" type="checkbox" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
+                <label for="is_active_create" style="margin: 0;">Aktif — user bisa login setelah dibuat</label>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Tambah user</button>
+            </div>
+        </form>
+    </div>
             <div class="field checkbox-row">
                 <input id="is_active_create" name="is_active" type="checkbox" value="1" {{ old('is_active', true) ? 'checked' : '' }}>
                 <label for="is_active_create" style="margin: 0;">Aktif (user bisa login)</label>

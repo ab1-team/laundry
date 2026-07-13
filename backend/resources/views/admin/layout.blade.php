@@ -178,15 +178,46 @@
         .btn-danger:hover { background: #fef2f2; }
         .btn-sm { padding: 4px 10px; font-size: 12px; }
         label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
-        input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea {
+        input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
             width: 100%;
             padding: 8px 10px;
             border: 1px solid var(--border);
             border-radius: 6px;
             font-size: 14px;
             font-family: inherit;
+            background-color: var(--surface);
         }
-        input:focus, textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+        input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
+        /* Select dropdown — custom chevron + warna berbeda saat masih placeholder.
+           penting: default browser styling untuk select sangat plain & tidak match
+           tema admin. */
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 12px;
+            padding-right: 32px !important;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text);
+        }
+        select.placeholder-selected {
+            color: var(--muted);
+            background-color: #fafbfc;
+            border-style: dashed;
+        }
+        select option { color: var(--text); background: #fff; padding: 4px 0; }
+        select option[value=""] { color: var(--muted); font-style: italic; }
+        select:disabled {
+            background-color: #f3f4f6;
+            color: var(--muted);
+            cursor: not-allowed;
+            opacity: 0.7;
+            border-style: dashed;
+        }
         .field { margin-bottom: 12px; }
         .field-row { display: flex; gap: 12px; }
         .field-row > .field { flex: 1; }
