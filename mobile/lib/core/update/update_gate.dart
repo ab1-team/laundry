@@ -33,10 +33,17 @@ class UpdateGate extends ConsumerStatefulWidget {
   final Widget child;
 
   @override
-  ConsumerState<UpdateGate> createState() => _UpdateGateState();
+  ConsumerState<UpdateGate> createState() => UpdateGateState();
 }
 
-class _UpdateGateState extends ConsumerState<UpdateGate> {
+/// GlobalKey yang di-attach ke UpdateGate widget di call-site
+/// (`UpdateGate(key: updateGateKey, child: ...)`). Dipakai oleh
+/// _UpdateSheet untuk akses _UpdateGateState (button handler panggil
+/// _startDownload). Key HARUS terikat ke widget Element supaya
+/// currentState tidak return null.
+final GlobalKey<UpdateGateState> updateGateKey = GlobalKey<UpdateGateState>();
+
+class UpdateGateState extends ConsumerState<UpdateGate> {
   UpdateRequirement? _handled;
 
   /// State lokal (UI thread) di gate tidak dipakai untuk rebuild sheet —
@@ -55,13 +62,6 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
     _progress.dispose();
     super.dispose();
   }
-
-  /// GlobalKey ke state ini — dipakai oleh _UpdateSheet (yang di-build
-  /// oleh showModalBottomSheet) untuk panggil _startDownload.
-  /// findAncestorStateOfType tidak reliable karena modal route context
-  /// tidak punya _UpdateGate di ancestor tree (gate ada di MaterialApp
-  /// builder callback, modal route di Navigator scope di sub-tree).
-  final GlobalKey<_UpdateGateState> _selfKey = GlobalKey<_UpdateGateState>();
 
   void _maybeHandle(UpdateCheckResult result) {
     if (!mounted) return;
@@ -111,7 +111,7 @@ class _UpdateGateState extends ConsumerState<UpdateGate> {
         // Pass selfKey supaya sheet bisa panggil _startDownload tanpa
         // findAncestorStateOfType (yang return null karena modal route
         // context tidak punya _UpdateGate di ancestor tree).
-        gateKey: _selfKey,
+        gateKey: updateGateKey,
       ),
     );
     if (dismissed == true && !mandatory) {
@@ -197,7 +197,7 @@ class _UpdateSheet extends StatelessWidget {
   /// dari button handler. findAncestorStateOfType tidak reliable karena
   /// sheet di-build oleh showModalBottomSheet dengan modal route context
   /// yang tidak punya _UpdateGate di ancestor tree.
-  final GlobalKey<_UpdateGateState> gateKey;
+  final GlobalKey<UpdateGateState> gateKey;
 
   /// ValueNotifier — dipakai bersama dengan _UpdateGateState supaya
   /// sheet rebuild saat progress berubah. Penting karena sheet di-build

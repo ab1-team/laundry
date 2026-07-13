@@ -162,7 +162,10 @@ class _RouterAppState extends ConsumerState<_RouterApp> {
       // Pakai `builder` callback supaya UpdateGate membungkus child router,
       // bukan MaterialApp itu sendiri — agar navigator context + tema
       // tetap milik MaterialApp saat sheet push.
-      builder: (context, child) => UpdateGate(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => UpdateGate(
+        key: updateGateKey,
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }
