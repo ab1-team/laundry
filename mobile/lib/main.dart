@@ -147,16 +147,22 @@ class _RouterAppState extends ConsumerState<_RouterApp> {
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final locale = ref.watch(localeProvider);
-    return UpdateGate(
-      child: MaterialApp.router(
-        title: 'LaundryAja',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: themeMode,
-        locale: locale,
-        routerConfig: _router,
-      ),
+    return MaterialApp.router(
+      title: 'LaundryAja',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
+      locale: locale,
+      routerConfig: _router,
+      // UpdateGate harus di DALAM MaterialApp.router supaya
+      // showModalBottomSheet() dapat MaterialLocalizations ancestor.
+      // Taruh di luar = crash "No MaterialLocalizations found" karena
+      // modal route push butuh Localizations dari MaterialApp di atasnya.
+      // Pakai `builder` callback supaya UpdateGate membungkus child router,
+      // bukan MaterialApp itu sendiri — agar navigator context + tema
+      // tetap milik MaterialApp saat sheet push.
+      builder: (context, child) => UpdateGate(child: child ?? const SizedBox.shrink()),
     );
   }
 }
