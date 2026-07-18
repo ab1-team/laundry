@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ServiceCategoryController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\TenantSettingsController;
+use App\Http\Controllers\Api\WaNotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -113,6 +114,28 @@ Route::prefix('v1')->group(function () {
             Route::get('export/orders',       [ReportController::class, 'exportOrders']);
             Route::get('export/payments',     [ReportController::class, 'exportPayments']);
         });
+
+        // =====================
+        // WA Notifications (log history)
+        // =====================
+        // GET  /api/v1/wa-notifications   — paginated, filter status/order
+        // POST /api/v1/wa-notifications/{notification}/retry — re-dispatch jika failed
+        Route::get('wa-notifications', [WaNotificationController::class, 'index']);
+        Route::post('wa-notifications/{notification}/retry', [WaNotificationController::class, 'retry']);
+
+        // POST /api/v1/wa-pairing — minta pairing code utk instance tenant
+        // (Owner input manual di WA → Settings → Linked Devices → Link with phone)
+        Route::post('wa-pairing', [WaNotificationController::class, 'pairing']);
+        // POST /api/v1/wa-pairing/reset — logout instance di Evolution + clear
+        // wa_settings.enabled. Setelah ini, re-call /wa-pairing untuk dapat
+        // pairing code baru. Tujuannya: tombol "Reset Koneksi" benar-benar
+        // memutus sesi WA di HP owner, bukan cuma return info "sudah terhubung".
+        Route::post('wa-pairing/reset', [WaNotificationController::class, 'reset']);
+        // GET /api/v1/wa-connection-state — sinkron flag enabled backend
+        // dengan state real Evolution. Handle skenario owner re-pair manual
+        // di WA tanpa lewat endpoint /wa-pairing (server-side reset DB
+        // setelah owner reset koneksi).
+        Route::get('wa-connection-state', [WaNotificationController::class, 'connectionState']);
 
         // =====================
         // Super Admin Routes

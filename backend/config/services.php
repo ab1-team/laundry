@@ -7,10 +7,7 @@ return [
     | Third Party Services
     |--------------------------------------------------------------------------
     |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
+    | File ini menyimpan kredensial third-party service (Evolution API, dsb).
     |
     */
 
@@ -33,6 +30,25 @@ return [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Evolution API (WhatsApp gateway)
+    |--------------------------------------------------------------------------
+    |
+    | URL base Evolution API instance (self-hosted atau managed).
+    | Token global API key dari Evolution dashboard.
+    |
+    | Per-tenant `instance` name disimpan di tenants.wa_settings JSON — bukan
+    | di sini — supaya multi-tenant bisa share 1 Evolution API server dengan
+    | nomor WA berbeda.
+    |
+    */
+    'evolution' => [
+        'base_url' => rtrim((string) env('EVOLUTION_API_URL', ''), '/'),
+        'api_key'  => env('EVOLUTION_API_KEY'),
+        'timeout'  => (int) env('EVOLUTION_API_TIMEOUT', 15),
     ],
 
 ];

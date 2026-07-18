@@ -37,6 +37,39 @@ services:
       # file upload user tetap ada di host.
       - ./storage/app:/var/www/html/storage/app
 
+  # Queue worker — process job kirim WA dari Redis ke Evolution API.
+  # Tanpa ini, SendWaNotificationJob duduk di Redis selamanya dan
+  # wa_notifications.status stuck di 'pending' selamanya.
+  # Image pakai base yang sama dgn `app` (sudah include source/vendor).
+  # Override command jadi `queue:work` (bukan php-fpm default).
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laundry-worker
+    restart: unless-stopped
+    depends_on:
+      - app
+      - redis
+      - mysql
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/var/www/html/.env
+      - ./storage/app:/var/www/html/storage/app
+    networks:
+      - laundry-net
+      - web-network
+    # Entrypoint image sudah jalanin php-fpm — kita skip & langsung
+    # php artisan queue:work redis --tries=3 --timeout=30
+    command: ["php", "artisan", "queue:work", "redis", "--tries=3", "--timeout=30", "--sleep=3", "--verbose"]
+    # Tambah healthcheck ringan — kalau worker hang, docker restart.
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan queue:monitor redis --max=1000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   nginx:
     build:
       context: .

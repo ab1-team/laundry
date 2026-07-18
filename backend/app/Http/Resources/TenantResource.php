@@ -29,6 +29,10 @@ class TenantResource extends JsonResource
             'created_at'     => $this->created_at?->toISOString(),
             // Di-load via `?->loadCount('users')` — null jika tidak di-eager-load.
             'users_count'    => $this->whenCounted('users'),
+            // WA gateway settings (Evolution API). Null jika belum diset.
+            // Sensitive token (api_key) tidak pernah ada di sini — hanya
+            // per-tenant config yang boleh diubah owner via TenantSettings.
+            'wa_settings'    => $this->wa_settings,
         ];
     }
 }

@@ -54,6 +54,27 @@ class TenantSettingsController extends Controller
         // buang key 'logo' dari validated payload agar tidak error fillable.
         unset($data['logo']);
 
+        // Deep-merge wa_settings agar partial update (mis. hanya kirim
+        // `templates` saja) tidak menghapus key lain (`instance`, `owner_number`,
+        // `enabled`, `notify_on`). Tanpa ini, setiap kali mobile edit
+        // template bakal reset pairing state Evolution.
+        if (isset($data['wa_settings']) && is_array($data['wa_settings'])) {
+            $current = $tenant->wa_settings ?? [];
+            $incoming = $data['wa_settings'];
+            // Top-level keys: replace per key (enabled/instance/owner_number
+            // datang utuh dari caller, boleh overwrite).
+            $merged = array_merge($current, $incoming);
+            // Sub-key `templates`: per-status merge — caller kirim subset
+            // (mis. hanya `selesai`), status lain di tenant tidak di-reset.
+            if (isset($incoming['templates']) && is_array($incoming['templates'])) {
+                $merged['templates'] = array_merge(
+                    $current['templates'] ?? [],
+                    $incoming['templates']
+                );
+            }
+            $data['wa_settings'] = $merged;
+        }
+
         $tenant->update($data);
 
         return ApiResponse::success(
