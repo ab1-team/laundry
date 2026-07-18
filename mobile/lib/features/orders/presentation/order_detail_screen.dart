@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
@@ -11,7 +12,9 @@ import '../../../core/theme/app_theme_ext.dart';
 import '../../../core/widgets/app_snackbar.dart';
 import '../../../core/widgets/payment_method_card.dart';
 import '../../../core/widgets/status_chip.dart';
+import '../../settings/presentation/settings_provider.dart';
 import '../data/order_model.dart';
+import '../data/receipt_pdf_service.dart';
 import 'orders_provider.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
@@ -56,7 +59,11 @@ class OrderDetailScreen extends ConsumerWidget {
           orElse: () => const Text('Detail Order'),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.print_outlined),
+            tooltip: 'Cetak Nota',
+            onPressed: () => _printReceipt(context, ref, orderAsync),
+          ),
         ],
       ),
       body: orderAsync.when(
@@ -577,19 +584,28 @@ class _PipelineCardState extends ConsumerState<_PipelineCard> {
                 // Active connector — covers the segment from the left
                 // edge to the centre of the active stage. As the order
                 // advances, more of the line is painted secondary.
-                Positioned(
-                  top: 16,
-                  left: 24,
-                  child: FractionallySizedBox(
-                    widthFactor: widget.currentIdx < 0
-                        ? 0
-                        : widget.currentIdx / (stages.length - 1),
-                    child: Container(
-                      height: 2,
-                      color: AppColors.secondary,
+                // Empty placeholder when currentIdx < 0; widget.currentIdx
+                // == 0 renders a zero-width sliver so FractionallySizedBox
+                // never gets an unconstrained axis.
+                if (widget.currentIdx < 0)
+                  const SizedBox.shrink()
+                else
+                  Positioned(
+                    top: 16,
+                    left: 24,
+                    right: 24,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor:
+                            widget.currentIdx / (stages.length - 1),
+                        child: Container(
+                          height: 2,
+                          color: AppColors.secondary,
+                        ),
+                      ),
                     ),
                   ),
-                ),
                 // Stage markers — distributed evenly so they line up
                 // with the connector endpoints.
                 Row(
@@ -690,6 +706,38 @@ class _PipelineCardState extends ConsumerState<_PipelineCard> {
       case 'selesai': return Icons.check_circle_outline;
       case 'diambil': return Icons.inventory_2_outlined;
       default:        return Icons.circle;
+    }
+  }
+}
+
+// ===========================================
+// Cetak nota
+// ===========================================
+
+/// Build the receipt PDF and hand it to the platform print/share sheet.
+/// `tenantSettingsProvider` is read fire-and-forget — when the caller's
+/// data isn't loaded yet (e.g. cold start into the detail screen), we
+/// still proceed with an empty tenant map so the operator is never
+/// blocked from printing.
+Future<void> _printReceipt(
+  BuildContext context,
+  WidgetRef ref,
+  AsyncValue<OrderModel> orderAsync,
+) async {
+  final order = orderAsync.valueOrNull;
+  if (order == null) return;
+  // Read tenant info without awaiting — falls back to {} if not loaded.
+  final tenant = ref.read(tenantSettingsProvider).valueOrNull ?? const {};
+  try {
+    final bytes = await ReceiptPdfService().build(order: order, tenant: tenant);
+    // Filename pakai ticket number biar gampang ditemukan di history print.
+    await Printing.layoutPdf(
+      onLayout: (_) async => bytes,
+      name: 'Nota-${order.ticketNumber}',
+    );
+  } catch (e) {
+    if (context.mounted) {
+      showAppSnackBar(context, 'Gagal cetak nota: $e', type: AppSnackBarType.error);
     }
   }
 }

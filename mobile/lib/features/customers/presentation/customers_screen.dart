@@ -308,12 +308,23 @@ class _CustomerSheetState extends ConsumerState<_CustomerSheet> {
       final phone = _phone.text.trim().isEmpty ? null : _phone.text.trim();
       final address = _address.text.trim().isEmpty ? null : _address.text.trim();
       final notes = _notes.text.trim().isEmpty ? null : _notes.text.trim();
-      await repo.create(
-        name: _name.text.trim(),
-        phone: phone,
-        address: address,
-        notes: notes,
-      );
+      final name = _name.text.trim();
+      if (widget.customer != null) {
+        await repo.update(
+          widget.customer!.id,
+          name: name,
+          phone: phone,
+          address: address,
+          notes: notes,
+        );
+      } else {
+        await repo.create(
+          name: name,
+          phone: phone,
+          address: address,
+          notes: notes,
+        );
+      }
       ref.invalidate(customersProvider);
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -354,7 +365,7 @@ class _CustomerSheetState extends ConsumerState<_CustomerSheet> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Tambah Pelanggan',
+                      widget.customer == null ? 'Tambah Pelanggan' : 'Edit Pelanggan',
                       style: AppTextStyles.titleLg.copyWith(color: context.colors.onSurface),
                       textAlign: TextAlign.center,
                     ),

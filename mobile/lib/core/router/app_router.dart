@@ -19,9 +19,9 @@ import '../../features/settings/presentation/edit_profile_screen.dart';
 import '../../features/settings/presentation/edit_tenant_contact_screen.dart';
 import '../../features/settings/presentation/edit_tenant_info_screen.dart';
 import '../../features/settings/presentation/help_screen.dart';
-import '../../features/settings/presentation/notification_settings_screen.dart';
 import '../../features/settings/presentation/preference_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/settings/presentation/whatsapp_screen.dart';
 import '../theme/app_theme_ext.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../../features/admin/presentation/admin_create_tenant_screen.dart';
@@ -240,11 +240,6 @@ class AppRouter {
           builder: (_, __) => const EditProfileScreen(),
         ),
         GoRoute(
-          path: '/settings/notifications',
-          parentNavigatorKey: rootKey,
-          builder: (_, __) => const NotificationSettingsScreen(),
-        ),
-        GoRoute(
           path: '/settings/preferences',
           parentNavigatorKey: rootKey,
           builder: (_, __) => const PreferenceScreen(),
@@ -253,6 +248,11 @@ class AppRouter {
           path: '/settings/help',
           parentNavigatorKey: rootKey,
           builder: (_, __) => const HelpScreen(),
+        ),
+        GoRoute(
+          path: '/settings/whatsapp',
+          parentNavigatorKey: rootKey,
+          builder: (_, __) => const WhatsAppScreen(),
         ),
 
         // =====================

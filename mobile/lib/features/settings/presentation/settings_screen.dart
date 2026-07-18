@@ -81,9 +81,9 @@ class SettingsScreen extends ConsumerWidget {
             title: 'Preferensi',
             items: const [
               _MenuItemData(
-                icon: Icons.notifications_outlined,
-                label: 'Notifikasi',
-                route: '/settings/notifications',
+                icon: Icons.chat_outlined,
+                label: 'WhatsApp Gateway',
+                route: '/settings/whatsapp',
               ),
               _MenuItemData(
                 icon: Icons.tune_outlined,

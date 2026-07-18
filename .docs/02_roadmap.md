@@ -100,7 +100,8 @@
 **Target**: Siap production, onboarding tenant pertama.
 
 ### Semua
-- [ ] Notifikasi WA ke customer (via Evolution API + n8n) — opsional
+- [x] Notifikasi WA ke customer (via Evolution API + n8n) — opsional
+  - ⚠️ Server Evolution `wa-gateway.enpiistudio.com` (IP 103.177.95.92) di-block WA: handshake 401 "Connection Failure" saat pairing. Ganti provider Evolution atau deploy sendiri sebelum go-live.
 - [ ] Onboarding flow untuk tenant baru
 - [ ] Error handling & empty states
 - [ ] Loading skeleton UI

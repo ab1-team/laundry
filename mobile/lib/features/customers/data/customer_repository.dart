@@ -42,4 +42,25 @@ class CustomerRepository {
   Future<void> delete(int id) async {
     await _api.dio.delete('/customers/$id');
   }
+
+  Future<Customer> update(
+    int id, {
+    required String name,
+    String? phone,
+    String? address,
+    String? notes,
+  }) async {
+    final res = await _api.dio.put('/customers/$id', data: {
+      'name': name,
+      'phone': phone,
+      'address': address,
+      'notes': notes,
+    });
+    final body = res.data;
+    if (body is! Map || body['data'] is! Map<String, dynamic>) {
+      final msg = body is Map ? body['message']?.toString() : null;
+      throw Exception(msg ?? 'Response server tidak valid (bukan Map)');
+    }
+    return Customer.fromJson(body['data'] as Map<String, dynamic>);
+  }
 }

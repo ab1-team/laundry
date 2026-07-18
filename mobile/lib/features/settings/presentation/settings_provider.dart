@@ -6,6 +6,7 @@ import '../../../core/network/api_client.dart';
 import '../data/password_repository.dart';
 import '../data/preferences_repository.dart';
 import '../data/tenant_settings_repository.dart';
+import '../data/whatsapp_repository.dart';
 
 // ============================================================
 // Repositories
@@ -17,6 +18,10 @@ final tenantSettingsRepositoryProvider = Provider<TenantSettingsRepository>((ref
 
 final passwordRepositoryProvider = Provider<PasswordRepository>((ref) {
   return PasswordRepository(ApiClient.instance);
+});
+
+final whatsAppRepositoryProvider = Provider<WhatsAppRepository>((ref) {
+  return WhatsAppRepository(ApiClient.instance);
 });
 
 /// Overridden in `main()` after `SharedPreferences.getInstance()` resolves —
