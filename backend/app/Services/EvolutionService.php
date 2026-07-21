@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Tenant;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
@@ -23,7 +24,7 @@ use RuntimeException;
  * Body:    { number: "62xxx", text: "..." }
  * Optional: delay, quoted, linkPreview, mentionsEveryOne, mentioned.
  *
- * Skipped: webhook inbound, sendMedia, sendButtons, presence, group messages.
+ * Skipped: webhook inbound, sendButtons, presence, group messages.
  * Add when ada permintaan rich-message / balasan WA triggering update status.
  */
 class EvolutionService
@@ -223,6 +224,64 @@ class EvolutionService
             ]);
 
         $this->assertSuccess($response, "send to '{$number}' via '{$instance}'");
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Kirim media (image/pdf/document) via endpoint Evolution API v2.
+     *
+     * POST {base_url}/message/sendMedia/{instance}
+     * Body: {
+     *   number, mediatype: "document"|"image"|"video"|"audio",
+     *   media: "data:{mime};base64,{base64}" atau URL publik,
+     *   fileName, caption? (max 1024 char)
+     * }
+     *
+     * `$mediaPath` adalah path relatif di `local` disk (storage/app/private).
+     * Kita embed sebagai base64 data URL supaya Evolution tidak perlu
+     * fetch URL publik — penting untuk dev (ngrok) dan self-host.
+     *
+     * `caption` jadi teks di bawah attachment — caller bisa pakai
+     * `WaNotification->message` sebagai caption (template yg sama dgn text).
+     *
+     * @throws RuntimeException kalau file tidak ada / HTTP gagal
+     */
+    public function sendMedia(
+        string $instance,
+        string $phone,
+        string $mediaPath,
+        string $mime,
+        string $fileName,
+        ?string $caption = null,
+    ): array {
+        $this->assertConfigured();
+        $number = $this->normalizePhone($phone);
+
+        $bytes = Storage::disk('local')->get($mediaPath);
+        if ($bytes === null) {
+            throw new RuntimeException("Media file tidak ditemukan: {$mediaPath}");
+        }
+
+        $payload = [
+            'number'    => $number,
+            'mediatype' => 'document',
+            'media'     => 'data:' . $mime . ';base64,' . base64_encode($bytes),
+            'fileName'  => $fileName,
+        ];
+        if ($caption !== null && $caption !== '') {
+            $payload['caption'] = $caption;
+        }
+
+        // PDF lebih besar dr text — tambah timeout supaya gak kepotong
+        // di attempt pertama (retry sdh ada di Job).
+        $response = Http::withHeaders(['apikey' => $this->apiKey])
+            ->timeout($this->timeout + 30)
+            ->acceptJson()
+            ->asJson()
+            ->post("{$this->baseUrl}/message/sendMedia/{$instance}", $payload);
+
+        $this->assertSuccess($response, "send media to '{$number}' via '{$instance}'");
 
         return $response->json() ?? [];
     }

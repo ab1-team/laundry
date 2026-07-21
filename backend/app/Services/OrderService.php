@@ -220,13 +220,17 @@ class OrderService
                 '{estimated_ready_at}' => $order->estimated_finish_at?->format('d M Y H:i') ?? '',
             ]);
 
+            // PDF nota di-generate di SendWaNotificationJob (async) supaya
+            // DomPDF render tidak block response admin. Job isi
+            // media_path & media_type kalau trigger_status === 'selesai'.
             $notif = WaNotification::create([
-                'tenant_id'   => $tenant->id,
-                'order_id'    => $order->id,
-                'customer_id' => $customer->id,
-                'phone'       => $customer->phone,
-                'message'     => $message,
-                'status'      => WaNotification::STATUS_PENDING,
+                'tenant_id'      => $tenant->id,
+                'order_id'       => $order->id,
+                'customer_id'    => $customer->id,
+                'phone'          => $customer->phone,
+                'message'        => $message,
+                'trigger_status' => $newStatus,
+                'status'         => WaNotification::STATUS_PENDING,
             ]);
 
             SendWaNotificationJob::dispatch($notif->id);

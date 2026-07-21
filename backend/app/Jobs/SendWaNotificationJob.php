@@ -2,13 +2,17 @@
 
 namespace App\Jobs;
 
+use App\Models\Order;
 use App\Models\WaNotification;
 use App\Services\EvolutionService;
+use App\Services\NotaGenerator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 /**
@@ -26,6 +30,18 @@ use Throwable;
 class SendWaNotificationJob implements ShouldQueue
 {
     use Dispatchable, Queueable, InteractsWithQueue, SerializesModels;
+
+    /**
+     * Map mime → extension untuk WhatsApp attachment. Tanpa map ini,
+     * `image/jpeg` jadi `nota-123.bin` yg penerima gak bisa buka.
+     * Tambah entry di sini kalau support tipe media baru.
+     */
+    private const MIME_EXT_MAP = [
+        'application/pdf' => 'pdf',
+        'image/jpeg'      => 'jpg',
+        'image/png'       => 'png',
+        'image/webp'      => 'webp',
+    ];
 
     public int $tries = 3;
     public int $timeout = 30;
@@ -73,8 +89,61 @@ class SendWaNotificationJob implements ShouldQueue
             return;
         }
 
+        // Generate PDF nota kalau dispatch di-trigger oleh transisi ke
+        // 'selesai' & belum ada media. Pakai trigger_status (bukan
+        // order.finished_at) supaya notif 'diambil' tidak ikut generate —
+        // finished_at tetap set setelah transisi 'diambil'.
+        // Async di worker — supaya admin request tidak nunggu DomPDF.
+        // Gagal → fallback text-only + log, retry job coba lagi (3x max).
+        if (!$notif->hasMedia() && $notif->trigger_status === Order::STATUS_SELESAI) {
+            try {
+                $path = app(NotaGenerator::class)->generate($notif->order);
+                $notif->update([
+                    'media_path' => $path,
+                    'media_type' => 'application/pdf',
+                ]);
+                $notif->refresh();
+            } catch (Throwable $e) {
+                Log::warning('Nota PDF generation gagal, kirim text-only', [
+                    'order_id' => $notif->order_id,
+                    'error'    => $e->getMessage(),
+                ]);
+            }
+        }
+
         try {
-            $evolution->sendText($instance, $notif->phone, $notif->message);
+            if ($notif->hasMedia()) {
+                // Type null biasanya data inconsistency — jangan diam-diam
+                // pakai default tanpa jejak.
+                $mime = $notif->media_type;
+                if (!$mime) {
+                    Log::warning('WaNotification media_type null, default ke application/pdf', [
+                        'notif_id' => $notif->id,
+                        'path'     => $notif->media_path,
+                    ]);
+                    $mime = 'application/pdf';
+                }
+
+                $ext = self::MIME_EXT_MAP[$mime]
+                    ?? preg_replace(
+                        '/[^a-z0-9]/',
+                        '',
+                        strtolower(explode('/', $mime, 2)[1] ?? ''),
+                    )
+                    ?: 'bin';
+
+                $fname = "nota-{$notif->order_id}.{$ext}";
+                $evolution->sendMedia(
+                    $instance,
+                    $notif->phone,
+                    $notif->media_path,
+                    $mime,
+                    $fname,
+                    $notif->message,
+                );
+            } else {
+                $evolution->sendText($instance, $notif->phone, $notif->message);
+            }
 
             $notif->update([
                 'status' => WaNotification::STATUS_SENT,
@@ -98,11 +167,21 @@ class SendWaNotificationJob implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         $notif = WaNotification::query()->find($this->notificationId);
-        if ($notif && $notif->status !== WaNotification::STATUS_SENT) {
-            $notif->update([
-                'status' => WaNotification::STATUS_FAILED,
-                'error'  => $exception->getMessage(),
-            ]);
+        if (!$notif || $notif->status === WaNotification::STATUS_SENT) {
+            return;
         }
+
+        // Hapus PDF orphaned — kalau job gagal permanen, file gak akan
+        // pernah terkirim. Path nota/order-{id}.pdf cuma direference
+        // 1 notif (saat ini), jadi aman delete tanpa cek referensi.
+        // Future: kalau ada multi-notif per path, tambah referensi check.
+        if ($notif->media_path && Storage::disk('local')->exists($notif->media_path)) {
+            Storage::disk('local')->delete($notif->media_path);
+        }
+
+        $notif->update([
+            'status' => WaNotification::STATUS_FAILED,
+            'error'  => $exception->getMessage(),
+        ]);
     }
 }

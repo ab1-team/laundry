@@ -15,10 +15,18 @@ class WaNotification extends Model
         'customer_id',
         'phone',
         'message',
+        'trigger_status',
+        'media_path',
+        'media_type',
         'status',
         'sent_at',
         'error',
     ];
+
+    public function hasMedia(): bool
+    {
+        return !empty($this->media_path);
+    }
 
     protected function casts(): array
     {
