@@ -15,7 +15,7 @@ class WaPairingRequest extends FormRequest
     {
         return [
             // Nomor owner yg akan menerima pairing code. Boleh format apa saja
-            // (08xx, +62xx, 62xx) — EvolutionService::normalizePhone() yg handle.
+            // (08xx, +62xx, 62xx) — N8nWaGateway::normalizePhone() yg handle.
             'number' => ['required', 'string', 'min:8', 'max:20'],
         ];
     }

@@ -61,7 +61,7 @@ class Tenant extends Model
 
     /**
      * Custom template WA per status (key = status code, value = template string).
-     * Dipakai `EvolutionService::renderForTenant()` sebagai override sebelum
+     * Dipakai `N8nWaGateway::renderForTenant()` sebagai override sebelum
      * fallback ke `DEFAULT_TEMPLATES`. Tenant yang gak pernah edit = return [].
      */
     public function waTemplates(): array

@@ -2,9 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Contracts\WhatsAppGateway;
 use App\Models\Order;
 use App\Models\WaNotification;
-use App\Services\EvolutionService;
 use App\Services\NotaGenerator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,13 +16,19 @@ use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 /**
- * Kirim 1 pesan WA via Evolution API, lalu update status log row.
+ * Kirim 1 pesan WA via WhatsAppGateway (saat ini n8n webhook-test →
+ * Evolution API), lalu update status log row.
  *
- * Dispatch dari OrderService::updateStatus ketika tenant wa_enabled=1
+ * Dispatch dari OrderService::maybeNotifyWa ketika tenant wa_enabled=1
  * dan status ada di wa_settings.notify_on.
  *
  * Retry: 3x dengan backoff 30s/2m/5m. Failure akhir → status=failed
  * dengan pesan error di kolom `error`.
+ *
+ * Fallback ke text-only kalau `sendMedia` belum di-support provider
+ * (saat ini n8n belum expose /send-media — lihat
+ * N8nWaGateway::sendMedia()). Caller tangkap RuntimeException &
+ * kirim via sendText dalam attempt yang sama, log warning.
  *
  * Skipped: rate-limit per-instance, queue terpisah `wa`, monitoring
  * dashboard. Add when volume naik / multi-tenant banyak konflik.
@@ -54,7 +60,7 @@ class SendWaNotificationJob implements ShouldQueue
 
     public function __construct(public int $notificationId) {}
 
-    public function handle(EvolutionService $evolution): void
+    public function handle(WhatsAppGateway $wa): void
     {
         $notif = WaNotification::query()->find($this->notificationId);
         if (!$notif || $notif->status === WaNotification::STATUS_SENT) {
@@ -76,15 +82,15 @@ class SendWaNotificationJob implements ShouldQueue
         if (!$instance) {
             $notif->update([
                 'status' => WaNotification::STATUS_FAILED,
-                'error'  => 'Instance Evolution API belum diset di tenant settings',
+                'error'  => 'Instance WhatsApp gateway belum diset di tenant settings',
             ]);
             return;
         }
 
-        if (!$evolution->isConfigured()) {
+        if (!$wa->isConfigured()) {
             $notif->update([
                 'status' => WaNotification::STATUS_FAILED,
-                'error'  => 'Evolution API global (base_url / api_key) belum di-set',
+                'error'  => 'WA Gateway global (WA_GATEWAY_BASE / WA_GATEWAY_API_KEY) belum di-set',
             ]);
             return;
         }
@@ -133,16 +139,32 @@ class SendWaNotificationJob implements ShouldQueue
                     ?: 'bin';
 
                 $fname = "nota-{$notif->order_id}.{$ext}";
-                $evolution->sendMedia(
-                    $instance,
-                    $notif->phone,
-                    $notif->media_path,
-                    $mime,
-                    $fname,
-                    $notif->message,
-                );
+
+                // Fallback ke text-only kalau provider belum support
+                // sendMedia (saat ini n8n workflow). RuntimeException
+                // spesifik dari N8nWaGateway::sendMedia() (lihat pesan).
+                try {
+                    $wa->sendMedia(
+                        $instance,
+                        $notif->phone,
+                        $notif->media_path,
+                        $mime,
+                        $fname,
+                        $notif->message,
+                    );
+                } catch (RuntimeException $mediaErr) {
+                    Log::warning(
+                        'sendMedia tidak didukung provider, fallback text-only',
+                        [
+                            'notif_id' => $notif->id,
+                            'provider' => 'wa_gateway',
+                            'error'    => $mediaErr->getMessage(),
+                        ]
+                    );
+                    $wa->sendText($instance, $notif->phone, $notif->message);
+                }
             } else {
-                $evolution->sendText($instance, $notif->phone, $notif->message);
+                $wa->sendText($instance, $notif->phone, $notif->message);
             }
 
             $notif->update([

@@ -1,0 +1,16 @@
+*** Begin Patch
+*** Update File: backend/app/Http/Controllers/Api/WaNotificationController.php
+@@ -313,6 +313,13 @@
+             return ApiResponse::error($e->getMessage(), 502);
+         }
+ 
++        // Persist nama instance baru supaya connectionState() polling
++        // pakai nama yang benar.
++        $settings['instance'] = $regenInstance;
++        $settings['enabled'] = false;
++        $tenant->update(['wa_settings' => $settings]);
++
+         return ApiResponse::success($result, 'Pairing code / QR baru diminta.');
+     }
+ }
+*** End Patch

@@ -10,7 +10,7 @@ use App\Models\OrderStatusLog;
 use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\WaNotification;
-use App\Services\EvolutionService;
+use App\Services\N8nWaGateway;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -203,12 +203,12 @@ class OrderService
 
             $statusLabel = self::statusLabel($newStatus);
 
-            // Build $vars dengan key ber-brace — EvolutionService::renderTemplate
+            // Build $vars dengan key ber-brace — N8nWaGateway::renderTemplate
             // pakai strtr, dan strtr abaikan key yang gak ada di $vars (token
             // unknown left literal). Tetap declare semua kemungkinan var
             // termasuk null supaya fallback eksplisit (lihat format rules
             // di bawah) dan template tidak nge-render "{var_name}".
-            $message = EvolutionService::renderForTenant($tenant, $newStatus, [
+            $message = N8nWaGateway::renderForTenant($tenant, $newStatus, [
                 '{tenant_name}'        => $tenant->name,
                 '{ticket_number}'      => $order->ticket_number,
                 '{status_label}'       => $statusLabel,

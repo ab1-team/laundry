@@ -126,6 +126,10 @@ Route::prefix('v1')->group(function () {
         // POST /api/v1/wa-pairing — minta pairing code utk instance tenant
         // (Owner input manual di WA → Settings → Linked Devices → Link with phone)
         Route::post('wa-pairing', [WaNotificationController::class, 'pairing']);
+        // POST /api/v1/wa-pairing/regenerate — minta pairing code BARU untuk
+        // instance yang sudah ada, tanpa bikin instance baru. Pakai setelah
+        // code expire (60s) atau sudah terpakai.
+        Route::post('wa-pairing/regenerate', [WaNotificationController::class, 'regenerate']);
         // POST /api/v1/wa-pairing/reset — logout instance di Evolution + clear
         // wa_settings.enabled. Setelah ini, re-call /wa-pairing untuk dapat
         // pairing code baru. Tujuannya: tombol "Reset Koneksi" benar-benar

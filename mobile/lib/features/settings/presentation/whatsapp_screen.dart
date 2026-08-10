@@ -42,8 +42,25 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
   int _secondsLeft = 0;
   bool _busy = false;
 
+  /// Polling state koneksi ke backend tiap 35 detik (antara 30-45 detik
+  /// yang Anda minta). Berlaku hanya saat instance sudah dibuat tapi WA
+  /// belum aktif (`_isActive == false`) — saat `_isActive` sudah true,
+  /// polling stop supaya tidak spam n8n.
+  Timer? _statePollTimer;
+  static const Duration _statePollInterval = Duration(seconds: 35);
+
   // Trigger notif — sinkron dengan tenants.wa_settings.notify_on.
   bool _isActive = false;
+
+  /// Nomor HP owner di-lock (readonly) kalau instance WhatsApp sudah pernah
+  /// dibuat — `wa_settings.instance` non-empty. Owner tidak boleh input
+  /// nomor beda tanpa reset koneksi dulu (nomor adalah identitas device
+  /// WA yang akan di-pair, bukan input bebas). Turunan dari hydrate.
+  bool _phoneLocked = false;
+
+  /// Guard: setelah reset koneksi, jangan biarkan hydrate override
+  /// _phoneLocked kembali true dari data cached sebelum fetch baru selesai.
+  bool _pendingReset = false;
 
   late Set<String> _notifyOn;
 
@@ -78,6 +95,7 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
   void dispose() {
     _phone.dispose();
     _countdown?.cancel();
+    _statePollTimer?.cancel();
     for (final c in _templateCtrls.values) {
       c.dispose();
     }
@@ -136,17 +154,23 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
 
     setState(() {
       _busy = true;
-      _syncTriggered = false; // allow re-sync setelah reset
+      // Reset polling supaya re-fire setelah createInstance — lihat
+      // _restartStatePolling() di akhir catch.
+      _stopStatePolling();
     });
     try {
       await ref.read(whatsAppRepositoryProvider).resetConnection();
       if (!mounted) return;
       setState(() {
         _isActive = false;
+        _phoneLocked = false;
         _pairingCode = null;
-        _phone.text = '';
+        _pendingReset = true;
       });
       _countdown?.cancel();
+      // Restart polling — setelah reset, instance baru harus dibuat dan
+      // kita butuh tick tiap 35 detik untuk lihat state transisi.
+      _restartStatePolling();
       ref.invalidate(tenantSettingsProvider);
       showAppSnackBar(context, 'Koneksi WhatsApp di-reset.',
           type: AppSnackBarType.success);
@@ -160,38 +184,65 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
   }
 
   Future<void> _generateCode() async {
-    final phone = _phone.text.trim();
-    if (phone.isEmpty) {
-      showAppSnackBar(context, 'Nomor WhatsApp wajib diisi.',
-          type: AppSnackBarType.error);
-      return;
+    // Pakai flow berbeda tergantung apakah instance sudah pernah dibuat:
+    // - Belum ada instance → /wa-pairing (create-instance). Input nomor
+    //   HP wajib.
+    // - Sudah ada instance → /wa-pairing/regenerate (state-poll, minta
+    //   pairing code baru). Nomor HP di-lock dari wa_settings.owner_number
+    //   supaya owner tidak input nomor beda tanpa reset dulu (akan bikin
+    //   instans WA owner jadi nomor salah).
+    final repo = ref.read(whatsAppRepositoryProvider);
+    final hasInstance = _phoneLocked;
+
+    if (!hasInstance) {
+      final phone = _phone.text.trim();
+      if (phone.isEmpty) {
+        showAppSnackBar(context, 'Nomor WhatsApp wajib diisi.',
+            type: AppSnackBarType.error);
+        return;
+      }
     }
 
     setState(() => _busy = true);
     try {
-      final repo = ref.read(whatsAppRepositoryProvider);
-      // Backend auto-generate nama instance (prefix LaundryAja-XXXXXX)
-      // kalau wa_settings.instance belum ada — mobile tidak perlu input.
-      final result = await repo.requestPairingCode(phone);
-      final code = result['pairing_code'] as String?;
+      // Response shape n8n (forwarded apa adanya oleh backend — lihat
+      // WaNotificationController::pairing / regenerate): `{success,
+      // instance: {name, status, qr, pairingCode, state}}`. Pairing code
+      // 8-char tinggal di nested instance.pairingCode (camelCase, sesuai
+      // response Evolution). Field `pairing_code` di root adalah legacy
+      // shape (Evolution-direct era) — tidak muncul dari flow n8n sekarang.
+      final Map<String, dynamic> result = hasInstance
+          ? await repo.regeneratePairingCode()
+          : await repo.requestPairingCode(_phone.text.trim());
+      final instance = result['instance'];
+      final code = (instance is Map ? instance['pairingCode'] : null) as String?
+          ?? result['pairing_code'] as String?;
       final expiresIn = (result['expires_in'] as int?) ?? 60;
 
       if (!mounted) return;
 
       if (code == null || code.isEmpty) {
-        throw 'Backend tidak mengembalikan pairing code.';
+        // n8n workflow return pairingCode kosong kalau instance sudah
+        // stale (idle terlalu lama di server). Owner perlu reset dulu
+        // supaya instance fresh dan create-instance jalan normal.
+        throw hasInstance
+            ? 'Pairing code tidak tersedia. Coba Reset Koneksi, lalu Buat Pairing Code.'
+            : 'Backend tidak mengembalikan pairing code.';
       }
 
       setState(() {
         _pairingCode = code;
-        _syncTriggered = false; // re-sync after pair completes
+        // Mulai polling supaya lihat state transisi ke open di background.
+        _restartStatePolling();
       });
       _startCountdown(expiresIn);
       ref.invalidate(tenantSettingsProvider);
 
       showAppSnackBar(
         context,
-        'Pairing code dibuat. Masukkan di WhatsApp dalam ${expiresIn}s.',
+        hasInstance
+            ? 'Pairing code baru dibuat. Masukkan di WhatsApp dalam ${expiresIn}s.'
+            : 'Pairing code dibuat. Masukkan di WhatsApp dalam ${expiresIn}s.',
         type: AppSnackBarType.success,
       );
     } catch (e) {
@@ -225,7 +276,14 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
       if (!mounted) return;
       showAppSnackBar(context, 'Pengaturan tersimpan.',
           type: AppSnackBarType.success);
-    } catch (e) {
+    } catch (e, st) {
+      // Print stack trace supaya developer lihat di console mana yang throw.
+      // Sebelumnya cuma muncul sebagai snackbar plain tanpa info endpoint
+      // atau tipe exception — menyulitkan debugging field-error yang
+      // intermittent (mis. backend kirim body tanpa field 'data'). Sekarang
+      // _unwrapData() di repo udah lempar ApiException yang deskriptif.
+      // ignore: avoid_print
+      print('WhatsApp save error: $e\n$st');
       if (!mounted) return;
       showAppSnackBar(context, 'Gagal simpan: $e', type: AppSnackBarType.error);
     } finally {
@@ -237,6 +295,12 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
     final wa = tenant['wa_settings'];
     final newActive = wa is Map &&
         wa['enabled'] == true &&
+        (wa['instance'] as String?)?.isNotEmpty == true;
+    // Lock nomor HP kalau instance pernah dibuat (regardless of enabled —
+    // bahkan kalau belum aktif pun, nomor adalah identitas device WA
+    // owner yang akan di-pair). Reset Connection adalah satu-satunya
+    // cara ganti nomor.
+    var newPhoneLocked = wa is Map &&
         (wa['instance'] as String?)?.isNotEmpty == true;
 
     if (!_hydrated) {
@@ -260,33 +324,76 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
       _hydrated = true;
     }
 
-    // Setiap kali tenant data berubah, sync _isActive. Kalau baru saja
-    // berubah false → true (pairing sukses di backend), clear pairing card
-    // + countdown karena kode sudah tidak relevan.
-    if (newActive != _isActive) {
+    // Setiap kali tenant data berubah, sync _isActive + _phoneLocked.
+    // Kalau baru saja berubah false → true (pairing sukses di backend),
+    // clear pairing card + countdown karena kode sudah tidak relevan.
+    // Setelah reset, data cached lama mungkin masih punya instance →
+    // newPhoneLocked=true. Skip override sampai data baru (instance cleared)
+    // datang dari backend.
+    if (_pendingReset && !newPhoneLocked) {
+      _pendingReset = false;
+    }
+    if (_pendingReset) {
+      newPhoneLocked = false;
+    }
+
+    if (newActive != _isActive || newPhoneLocked != _phoneLocked) {
       setState(() {
         _isActive = newActive;
+        _phoneLocked = newPhoneLocked;
         if (newActive) {
           _pairingCode = null;
           _countdown?.cancel();
           _secondsLeft = 0;
+          // WA sudah terhubung → stop polling, tidak perlu cek lagi.
+          _stopStatePolling();
         }
       });
     } else {
       _isActive = newActive;
+      _phoneLocked = newPhoneLocked;
     }
 
-    // First hydrate selesai → trigger sync ke Evolution untuk catch
-    // skenario owner re-pair manual di WA tanpa lewat endpoint /wa-pairing.
-    // Backend akan update wa_settings.enabled kalau state mismatch, dan
-    // invalidate tenant provider refresh data ini.
-    if (_hydrated && !_syncTriggered) {
-      _syncTriggered = true;
-      _syncConnectionState();
+    // First hydrate selesai → start polling state koneksi. Cadence 35 detik
+    // (antara 30-45 detik yang Anda minta) — lebih cepat dari itu akan
+    // spam n8n dan trigger reset koneksi (sesuai pesan Anda), lebih lambat
+    // bikin UX terasa tidak responsif saat owner scan QR.
+    //
+    // Polling stop otomatis saat _isActive berubah true (lihat watcher di
+    // bawah) supaya tidak ada request sia-sia setelah WA terhubung.
+    if (_hydrated && _statePollTimer == null) {
+      _startStatePolling();
     }
   }
 
-  bool _syncTriggered = false;
+  /// Mulai periodic GET /wa-connection-state. Setiap callback:
+  /// - kalau `enabled` baru jadi true → invalidate tenant provider (UI refresh).
+  /// - kalau _isActive jadi true → stop timer.
+  void _startStatePolling() {
+    _statePollTimer?.cancel();
+    _statePollTimer = Timer.periodic(_statePollInterval, (_) async {
+      if (!mounted || _isActive) {
+        _stopStatePolling();
+        return;
+      }
+      await _syncConnectionState();
+    });
+  }
+
+  void _stopStatePolling() {
+    _statePollTimer?.cancel();
+    _statePollTimer = null;
+  }
+
+  /// Stop polling saat reset koneksi — instance akan hilang dari DB,
+  /// polling berikut akan dapat enabled=false dan invalidate provider.
+  /// Mulai lagi otomatis di _hydrateFromTenant.
+  void _restartStatePolling() {
+    _stopStatePolling();
+    if (_hydrated && !_isActive) {
+      _startStatePolling();
+    }
+  }
 
   Future<void> _syncConnectionState() async {
     try {
@@ -299,8 +406,9 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
         ref.invalidate(tenantSettingsProvider);
       }
     } catch (_) {
-      // Sync optional — kalau gagal (timeout, Evolution down), abaikan.
-      // User tinggal manual tekan "Buat Pairing Code" atau "Reset Koneksi".
+      // Sync optional — kalau gagal (timeout, n8n down), abaikan.
+      // Tick berikutnya akan coba lagi. User bisa manual tekan
+      // "Buat Pairing Code" atau "Reset Koneksi" kalau perlu.
     }
   }
 
@@ -340,15 +448,22 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
             children: [
               _StatusCard(waSettings: tenant['wa_settings']),
               const SizedBox(height: 24),
-              // Lock nomor owner ketika WA sudah aktif — kalau mau ganti
-              // nomor, owner harus disconnect dulu. Cegah input diam-diam
-              // yang tidak terkirim ke backend.
+              // Lock nomor owner ketika instance sudah dibuat — owner tidak
+              // boleh input nomor beda tanpa reset koneksi dulu (nomor
+              // adalah identitas device WA owner, bukan input bebas).
+              // _phoneLocked dihitung dari wa_settings.instance non-empty,
+              // bukan dari enabled — bahkan saat instance belum aktif pun,
+              // nomor sudah terikat ke instance yang sedang menunggu pair.
               AppTextField(
-                label: 'Nomor WhatsApp Owner',
-                hint: '081234567890',
+                label: _phoneLocked
+                    ? 'Nomor WhatsApp Owner (terkunci)'
+                    : 'Nomor WhatsApp Owner',
+                hint: _phoneLocked
+                    ? 'Reset koneksi untuk ganti nomor'
+                    : '081234567890',
                 controller: _phone,
                 keyboardType: TextInputType.phone,
-                enabled: !_isActive,
+                enabled: !_phoneLocked,
               ),
               const SizedBox(height: 20),
               FilledButton.icon(
@@ -364,7 +479,9 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
                       )
                     : const Icon(Icons.qr_code_2),
                 label: Text(_pairingCode == null
-                    ? 'Buat Pairing Code'
+                    ? (_phoneLocked
+                        ? 'Generate Pairing Lagi'
+                        : 'Buat Pairing Code')
                     : 'Buat Ulang Code'),
                 style: FilledButton.styleFrom(
                   backgroundColor: context.colors.primary,
@@ -375,10 +492,12 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
                   ),
                 ),
               ),
-              // Reset Koneksi hanya relevan saat WA sudah terhubung —
-              // pisah dari pairing flow biar jelas intent-nya. Saat WA
-              // belum aktif, owner cukup pakai tombol Buat Pairing Code di atas.
-              if (_isActive) ...[
+              // Reset Koneksi relevan kapanpun instance sudah dibuat —
+              // owner butuh ganti nomor HP (input field readonly), atau
+              // putus sesi WA di HP owner (lalu re-pair via Generate
+              // Pairing Lagi di atas). Tidak dibatasi _isActive supaya
+              // owner selalu bisa reset meskipun state masih connecting.
+              if (_phoneLocked) ...[
                 const SizedBox(height: 12),
                 TextButton.icon(
                   onPressed: _busy ? null : _resetConnection,

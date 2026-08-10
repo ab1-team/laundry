@@ -34,21 +34,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Evolution API (WhatsApp gateway)
+    | WA Gateway (n8n webhook-test → Evolution API)
     |--------------------------------------------------------------------------
     |
-    | URL base Evolution API instance (self-hosted atau managed).
-    | Token global API key dari Evolution dashboard.
+    | Backend Laravel proxy ke n8n workflow webhook-test. n8n flow internal
+    | meneruskan request ke Evolution API. Credential Basic n8n tidak pernah
+    | bocor ke browser — semuanya server-side.
     |
-    | Per-tenant `instance` name disimpan di tenants.wa_settings JSON — bukan
-    | di sini — supaya multi-tenant bisa share 1 Evolution API server dengan
-    | nomor WA berbeda.
+    | Lihat .docs/WA-GATEWAY-API.md untuk daftar endpoint & shape response.
+    |
+    | Per-tenant `instance` name disimpan di tenants.wa_settings JSON dengan
+    | format `app-{slug}-{kec_id}` — bukan di sini. Backend pilih instance
+    | dari session->lokasi saat kirim pesan.
     |
     */
-    'evolution' => [
-        'base_url' => rtrim((string) env('EVOLUTION_API_URL', ''), '/'),
-        'api_key'  => env('EVOLUTION_API_KEY'),
-        'timeout'  => (int) env('EVOLUTION_API_TIMEOUT', 15),
+    'wa_gateway' => [
+        'base_url'   => rtrim((string) env('WA_GATEWAY_BASE', ''), '/'),
+        // Format: "user:pass" — di-encode base64 → "Authorization: Basic ..."
+        'api_key'    => env('WA_GATEWAY_API_KEY'),
+        'timeout'    => (int) env('WA_GATEWAY_TIMEOUT', 15),
+        // User-Agent Chrome untuk bypass Cloudflare WAF enpii (block GuzzleHttp/7).
+        'user_agent' => env(
+            'WA_GATEWAY_USER_AGENT',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                . '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        ),
     ],
 
 ];

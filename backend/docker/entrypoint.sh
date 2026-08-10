@@ -44,4 +44,14 @@ chmod 0664 /var/www/html/.env
 chown -R www-data:www-data /var/www/html/storage/app
 chmod -R ug+rwX /var/www/html/storage/app
 
+# storage/logs/ juga harus writable www-data. Foldernya image-baked —
+# kalau image di-build sebagai root (default Dockerfile), owner = root
+# sehingga php-fpm worker (uid 33) gagal append ke laravel.log dan
+# LoggingException naik sebagai 500 ke caller (lihat error "stream
+# /var/www/html/storage/logs/laravel.log could not be opened in append
+# mode: Permission denied" sebagai 500 response, bener-bener unhelpful
+# karena wrap pesan asli upstream yang lebih penting).
+chown -R www-data:www-data /var/www/html/storage/logs
+chmod -R ug+rwX /var/www/html/storage/logs
+
 exec "$@"

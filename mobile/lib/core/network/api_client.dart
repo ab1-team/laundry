@@ -22,7 +22,18 @@ class ApiClient {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      validateStatus: (status) => status != null && status < 500,
+      validateStatus: (status) {
+        // Accept semua status (termasuk 5xx) supaya body response sampai ke
+        // caller via response.data. Backend bisa return 502 untuk upstream
+        // gateway error (mis. workflow n8n belum ready) dengan body JSON
+        // berisi pesan jelas — interceptor onResponse di bawah extract
+        // `data.message` jadi ApiException agar UI bisa tampilkan.
+        //
+        // Sebelumnya pakai `status < 500` — 502 ditolak Dio otomatis dengan
+        // `DioException [bad response]: null` (body tidak ter-parse), UI cuma
+        // lihat pesan generic tanpa diagnosa.
+        return status != null;
+      },
     ));
 
     dio.interceptors.add(InterceptorsWrapper(
