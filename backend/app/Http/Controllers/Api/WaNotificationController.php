@@ -237,7 +237,7 @@ class WaNotificationController extends Controller
 
         // Persist instance + owner_number. `enabled` tetap false sampai
         // `connectionState()` melihat `state=open` di polling berikutnya.
-        $settings['owner_number'] = $number;
+        try { $settings['owner_number'] = $wa->normalizePhone($number); } catch (\Throwable) { $settings['owner_number'] = $number; }
         if (!isset($settings['notify_on']) || empty($settings['notify_on'])) {
             $settings['notify_on'] = ['selesai', 'diambil'];
         }

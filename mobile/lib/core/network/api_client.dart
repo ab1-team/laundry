@@ -45,22 +45,40 @@ class ApiClient {
         handler.next(options);
       },
       onResponse: (response, handler) {
-        // Backend uses {success, message, data, errors}.
-        // Treat 4xx as errors for callers.
+        final statusCode = response.statusCode ?? 200;
         final data = response.data;
-        if (data is Map && data['success'] == false) {
+        final isHttpError = statusCode >= 400;
+        final isLogicError = data is Map && data['success'] == false;
+
+        if (isHttpError || isLogicError) {
+          String message = 'Request failed ($statusCode)';
+          Map<String, dynamic>? errors;
+
+          if (data is Map) {
+            final rawMsg = data['message']?.toString() ??
+                data['error']?.toString() ??
+                data['detail']?.toString();
+            if (rawMsg != null && rawMsg.trim().isNotEmpty) {
+              message = rawMsg.trim();
+            }
+            if (data['errors'] is Map) {
+              errors = Map<String, dynamic>.from(data['errors'] as Map);
+            }
+          } else if (data is String && data.trim().isNotEmpty) {
+            final clean = data.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+            if (clean.isNotEmpty) {
+              message = clean.length > 200 ? '${clean.substring(0, 200)}...' : clean;
+            }
+          }
+
           handler.reject(DioException(
             requestOptions: response.requestOptions,
             response: response,
             type: DioExceptionType.badResponse,
             error: ApiException(
-              data['message']?.toString() ?? 'Request failed',
-              statusCode: response.statusCode,
-              errors: data['errors'] is Map<String, dynamic>
-                  ? data['errors'] as Map<String, dynamic>
-                  : (data['errors'] is Map
-                      ? Map<String, dynamic>.from(data['errors'] as Map)
-                      : null),
+              message,
+              statusCode: statusCode,
+              errors: errors,
             ),
           ));
           return;

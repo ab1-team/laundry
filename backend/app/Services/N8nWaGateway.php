@@ -111,7 +111,7 @@ class N8nWaGateway implements WhatsAppGateway
 
         $response = $this->http()->post("{$this->baseUrl}/create-instance", [
             'instance' => $name,
-            'phone'    => $number,
+            'phone'    => $this->normalizePhone($number),
         ]);
 
         $this->assertSuccess($response, "create instance '{$name}'");

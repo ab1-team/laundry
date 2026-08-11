@@ -176,7 +176,7 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
           type: AppSnackBarType.success);
     } catch (e) {
       if (!mounted) return;
-      showAppSnackBar(context, 'Gagal reset: $e',
+      showAppSnackBar(context, 'Gagal reset: ${e is ApiException ? e.message : e}',
           type: AppSnackBarType.error);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -247,7 +247,7 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      showAppSnackBar(context, 'Gagal: $e', type: AppSnackBarType.error);
+      showAppSnackBar(context, 'Gagal: ${e is ApiException ? e.message : e}', type: AppSnackBarType.error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -285,7 +285,7 @@ class _WhatsAppScreenState extends ConsumerState<WhatsAppScreen> {
       // ignore: avoid_print
       print('WhatsApp save error: $e\n$st');
       if (!mounted) return;
-      showAppSnackBar(context, 'Gagal simpan: $e', type: AppSnackBarType.error);
+      showAppSnackBar(context, 'Gagal simpan: ${e is ApiException ? e.message : e}', type: AppSnackBarType.error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
