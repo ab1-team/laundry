@@ -136,6 +136,44 @@ void main() {
     expect(icons.first.iconUrl, contains('/storage/icons/shirt.png'));
     expect(icons.last.iconUrl, 'https://cdn.test/x.png');
   });
+
+  test('updateCategory sends icon_id only when caller opts in (clearIcon)', () async {
+    // Bug: versi lama mengirim icon_id = null hanya kalau semua field
+    // lain null, sehingga `updateCategory(id, name:'X', iconId:null)`
+    // diam-diam TIDAK mengirim icon_id dan backend tidak bisa clear.
+    // Fix: tambah flag eksplisit `clearIcon` — null saja tanpa flag
+    // tidak boleh mengirim key icon_id.
+    apiClient.dio.httpClientAdapter = TestDioAdapter((options) async {
+      data = options.data;
+      return jsonResponse({'data': categoryJson});
+    });
+
+    // 1) Hanya set nama → icon_id TIDAK boleh dikirim.
+    await repository.updateCategory(10, name: 'Baru');
+    expect(data, {'name': 'Baru'});
+
+    // 2) Clear icon secara eksplisit → key icon_id HARUS dikirim (null).
+    await repository.updateCategory(10, clearIcon: true);
+    expect(data, {'icon_id': null});
+
+    // 3) Set icon ke nilai baru → key icon_id HARUS dikirim (non-null).
+    await repository.updateCategory(10, iconId: 7);
+    expect(data, {'icon_id': 7});
+  });
+
+  test('updateService honors clearIcon for explicit icon unset', () async {
+    apiClient.dio.httpClientAdapter = TestDioAdapter((options) async {
+      data = options.data;
+      return jsonResponse({'data': serviceJson});
+    });
+    // Hanya set nama → icon_id TIDAK boleh dikirim (sesuai fix).
+    await repository.updateService(11, name: 'Baru');
+    expect(data, {'name': 'Baru'});
+
+    // Clear icon → key icon_id HARUS dikirim sebagai null.
+    await repository.updateService(11, clearIcon: true);
+    expect(data, {'icon_id': null});
+  });
 }
 
 const categoryJson = <String, dynamic>{

@@ -44,7 +44,18 @@ class UpdateGate extends ConsumerStatefulWidget {
 final GlobalKey<UpdateGateState> updateGateKey = GlobalKey<UpdateGateState>();
 
 class UpdateGateState extends ConsumerState<UpdateGate> {
+  /// Requirement level yang sudah ditampilkan ke user. Saat optional update
+  /// di-dismiss, kita set ke [UpdateRequirement.none] supaya provider
+  /// refresh berikutnya tidak show lagi sampai requirement naik ke
+  /// mandatory atau info versi berubah (handled via _handledVersion di
+  /// bawah). Pendekatan lama yang overloading `none` sebagai sentinel
+  /// gagal karena requirement == none dicegat di awal _maybeHandle.
   UpdateRequirement? _handled;
+
+  /// Versi latest (toString) yang sudah di-handle. Dipakai agar optional
+  /// update dengan versi BERMASIH SAMA tidak dimunculkan lagi, sekaligus
+  /// mengizinkan update versi baru berikutnya untuk trigger lagi.
+  String? _handledVersion;
 
   /// State lokal (UI thread) di gate tidak dipakai untuk rebuild sheet —
   /// ValueNotifier dipakai supaya _UpdateSheet (yang di-build sekali
@@ -65,13 +76,16 @@ class UpdateGateState extends ConsumerState<UpdateGate> {
 
   void _maybeHandle(UpdateCheckResult result) {
     if (!mounted) return;
-    // Hanya tangani 1 kali per requirement level. Kalau user dismiss
-    // optional update, tidak muncul lagi sampai requirement naik.
-    if (_handled == result.requirement) return;
+    // Hindari double-fire untuk requirement level yang sama SELAMA versi
+    // latest masih sama. Kalau versi baru datang, _handled != current,
+    // dialog tampil lagi (untuk mandatory langsung block, untuk optional
+    // user dapat prompt lagi).
+    if (_handled == result.requirement && _handledVersion == result.info?.latestVersion.toString()) return;
     if (result.requirement == UpdateRequirement.none) return;
     if (result.info == null) return;
 
     _handled = result.requirement;
+    _handledVersion = result.info!.latestVersion.toString();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _showUpdateSheet(result.info!, result.requirement == UpdateRequirement.mandatory);
