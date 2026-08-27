@@ -28,13 +28,22 @@ class MasterRepository {
     return ServiceCategory.fromJson(((res.data as Map)['data'] as Map<String, dynamic>));
   }
 
-  Future<ServiceCategory> updateCategory(int id, {String? name, int? iconId, int? sortOrder, bool? isActive}) async {
+  Future<ServiceCategory> updateCategory(int id, {String? name, int? iconId, bool clearIcon = false, int? sortOrder, bool? isActive}) async {
     final body = <String, dynamic>{};
     if (name != null) body['name'] = name;
-    // Selalu kirim icon_id kalau caller sebut — termasuk null (untuk
-    // unset). Backend rule `nullable` mengizinkan null; kalau field tidak
-    // dikirim sama sekali, Eloquent tidak update kolom.
-    if (iconId != null || (name == null && sortOrder == null && isActive == null)) {
+    // Selalu kirim icon_id kalau caller sebut — termasuk null eksplisit
+    // lewat flag `clearIcon` (untuk unset). Backend rule `nullable`
+    // mengizinkan null; kalau field tidak dikirim sama sekali, Eloquent
+    // tidak update kolom.
+    //
+    // Catatan: versi sebelumnya menggunakan heuristik "kirim null kalau
+    // field lain semua null" yang membuat `updateCategory(id, name:'X',
+    // iconId: null)` diam-diam TIDAK mengirim icon_id, padahal intent
+    // user bisa saja ingin mengubah nama sekaligus menghapus icon.
+    // Caller sekarang harus pakai `clearIcon: true` untuk unset
+    // (konsisten dengan createService yang mengirim key icon_id apa
+    // adanya).
+    if (iconId != null || clearIcon) {
       body['icon_id'] = iconId;
     }
     if (sortOrder != null) body['sort_order'] = sortOrder;
@@ -85,6 +94,7 @@ class MasterRepository {
   Future<Service> updateService(int id, {
     int? categoryId,
     int? iconId,
+    bool clearIcon = false,
     String? name,
     double? price,
     String? unit,
@@ -93,8 +103,9 @@ class MasterRepository {
   }) async {
     final body = <String, dynamic>{};
     if (categoryId != null) body['category_id'] = categoryId;
-    // Sama pattern dengan kategori: kirim null eksplisit untuk unset.
-    if (iconId != null || (categoryId == null && name == null && price == null && unit == null && durationHours == null && isActive == null)) {
+    // Lihat updateCategory — gunakan flag `clearIcon` eksplisit untuk
+    // unset, bukan heuristik yang bisa di-bypass.
+    if (iconId != null || clearIcon) {
       body['icon_id'] = iconId;
     }
     if (name != null) body['name'] = name;

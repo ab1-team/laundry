@@ -27,7 +27,7 @@ class WhatsAppRepository {
         throw e.error as ApiException;
       }
       final statusCode = e.response?.statusCode;
-      String msg = e.message ?? 'Gagal menghubungi ';
+      String msg = e.message ?? 'Gagal menghubungi $endpoint';
       final body = e.response?.data;
       if (body is Map) {
         msg = body['message']?.toString() ?? body['error']?.toString() ?? msg;
@@ -41,7 +41,7 @@ class WhatsAppRepository {
     final body = res.data;
 
     if (statusCode >= 400) {
-      String msg = 'HTTP  dari ';
+      String msg = 'HTTP $statusCode dari $endpoint';
       if (body is Map) {
         msg = body['message']?.toString() ?? body['error']?.toString() ?? msg;
       }
@@ -50,14 +50,14 @@ class WhatsAppRepository {
 
     if (body is! Map) {
       throw ApiException(
-        'Response dari  bukan JSON object',
+        'Response dari $endpoint bukan JSON object',
         statusCode: statusCode,
       );
     }
 
     if (body['success'] == false) {
       throw ApiException(
-        body['message']?.toString() ?? 'Request ke  gagal',
+        body['message']?.toString() ?? 'Request ke $endpoint gagal',
         statusCode: statusCode,
       );
     }
@@ -65,7 +65,7 @@ class WhatsAppRepository {
     final data = body['data'];
     if (data is! Map) {
       throw ApiException(
-        body['message']?.toString() ?? 'Response dari  tidak memiliki data valid',
+        body['message']?.toString() ?? 'Response dari $endpoint tidak memiliki data valid',
         statusCode: statusCode,
       );
     }
