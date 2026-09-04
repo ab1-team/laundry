@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../core/network/asset_url.dart';
 import '../data/order_model.dart';
 
 /// Generates the customer-facing receipt (nota) PDF for an order.
@@ -26,6 +28,25 @@ class ReceiptPdfService {
     required OrderModel order,
     required Map<String, dynamic> tenant,
   }) async {
+    pw.MemoryImage? logoImage;
+    final rawLogoUrl = (tenant['logo_url'] as String?)?.trim();
+    final rawLogoPath = (tenant['logo_path'] as String?)?.trim();
+    final logoRaw = (rawLogoUrl != null && rawLogoUrl.isNotEmpty)
+        ? rawLogoUrl
+        : ((rawLogoPath != null && rawLogoPath.isNotEmpty) ? rawLogoPath : null);
+
+    final resolvedUrl = resolveAssetUrl(logoRaw);
+    if (resolvedUrl.isNotEmpty) {
+      final logoBytes = await _fetchLogoBytes(resolvedUrl);
+      if (logoBytes != null && logoBytes.isNotEmpty) {
+        try {
+          logoImage = pw.MemoryImage(logoBytes);
+        } catch (_) {
+          logoImage = null;
+        }
+      }
+    }
+
     final doc = pw.Document();
     doc.addPage(
       pw.Page(
@@ -34,13 +55,44 @@ class ReceiptPdfService {
           double.infinity,
           marginAll: 8,
         ),
-        build: (ctx) => _content(order, tenant),
+        build: (ctx) => _content(order, tenant, logoImage: logoImage),
       ),
     );
     return doc.save();
   }
 
-  pw.Widget _content(OrderModel order, Map<String, dynamic> tenant) {
+  Future<Uint8List?> _fetchLogoBytes(String url) async {
+    HttpClient? client;
+    try {
+      final uri = Uri.tryParse(url);
+      if (uri == null || (!uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https'))) {
+        return null;
+      }
+      client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 4);
+      final request = await client.getUrl(uri).timeout(const Duration(seconds: 4));
+      final response = await request.close().timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final bytes = await response.fold<BytesBuilder>(
+          BytesBuilder(),
+          (builder, chunk) => builder..add(chunk),
+        ).timeout(const Duration(seconds: 4));
+        final result = bytes.takeBytes();
+        return result.isNotEmpty ? result : null;
+      }
+    } catch (_) {
+      // Swallow any error (network, timeout, non-200, invalid format)
+    } finally {
+      client?.close(force: true);
+    }
+    return null;
+  }
+
+  pw.Widget _content(
+    OrderModel order,
+    Map<String, dynamic> tenant, {
+    pw.ImageProvider? logoImage,
+  }) {
     final tenantName = (tenant['name'] as String?)?.trim();
     final hasTenantName = tenantName != null && tenantName.isNotEmpty;
     final displayName = hasTenantName ? tenantName : 'LAUNDRY';
@@ -67,36 +119,68 @@ class ReceiptPdfService {
         ? 'Terima kasih telah menjadi pelanggan setia "$tenantName"'
         : 'Terima kasih telah menjadi pelanggan setia kami';
 
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
+    final textLines = [
+      pw.Center(
+        child: pw.Text(
+          displayName,
+          style: pw.TextStyle(
+            font: pw.Font.courier(),
+            fontSize: 13,
+            fontWeight: pw.FontWeight.bold,
+          ),
+          textAlign: pw.TextAlign.center,
+        ),
+      ),
+      if (alamatLine != null)
         pw.Center(
           child: pw.Text(
-            displayName,
-            style: pw.TextStyle(
-              font: pw.Font.courier(),
-              fontSize: 13,
-              fontWeight: pw.FontWeight.bold,
-            ),
+            alamatLine,
+            style: pw.TextStyle(font: pw.Font.courier(), fontSize: 8),
             textAlign: pw.TextAlign.center,
           ),
         ),
-        if (alamatLine != null)
-          pw.Center(
-            child: pw.Text(
-              alamatLine,
-              style: pw.TextStyle(font: pw.Font.courier(), fontSize: 8),
-              textAlign: pw.TextAlign.center,
-            ),
+      if (hasPhone)
+        pw.Center(
+          child: pw.Text(
+            'Telp : $tenantPhone',
+            style: pw.TextStyle(font: pw.Font.courier(), fontSize: 8),
+            textAlign: pw.TextAlign.center,
           ),
-        if (hasPhone)
-          pw.Center(
-            child: pw.Text(
-              'Telp : $tenantPhone',
-              style: pw.TextStyle(font: pw.Font.courier(), fontSize: 8),
-              textAlign: pw.TextAlign.center,
-            ),
-          ),
+        ),
+    ];
+
+    final kopWidget = logoImage != null
+        ? pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                  children: textLines,
+                ),
+              ),
+              pw.SizedBox(width: 6),
+              pw.ClipRRect(
+                horizontalRadius: 8,
+                verticalRadius: 8,
+                child: pw.Image(
+                  logoImage,
+                  width: 60,
+                  height: 60,
+                  fit: pw.BoxFit.cover,
+                ),
+              ),
+            ],
+          )
+        : pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: textLines,
+          );
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        kopWidget,
         pw.SizedBox(height: 6),
         _solidDivider(),
         pw.SizedBox(height: 4),

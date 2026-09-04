@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:laundry/features/orders/data/order_model.dart';
@@ -90,6 +93,107 @@ void main() {
       final bytes = await service.build(order: order, tenant: const {});
       expect(bytes, isNotEmpty);
       expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+    });
+
+    test('build degrades gracefully when logo URL is unreachable', () async {
+      final service = ReceiptPdfService();
+      final order = buildOrder();
+      final tenant = {
+        'name': 'Nusa Laundry',
+        'address': 'Jl. Merdeka No. 10',
+        'city': 'Jakarta',
+        'phone': '08123456789',
+        'logo_url': 'http://127.0.0.1:1/unreachable.png',
+      };
+
+      final stopwatch = Stopwatch()..start();
+      final bytes = await service.build(order: order, tenant: tenant);
+      stopwatch.stop();
+
+      expect(bytes, isNotEmpty);
+      expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+      expect(stopwatch.elapsedMilliseconds, lessThan(10000));
+    });
+
+    test('build renders tenant logo when logo is served successfully via HTTP', () async {
+      final pngBytes = Uint8List.fromList(const [
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+        0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
+        0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+        0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+        0x42, 0x60, 0x82,
+      ]);
+
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((HttpRequest request) {
+        request.response.headers.contentType = ContentType('image', 'png');
+        request.response.add(pngBytes);
+        request.response.close();
+      });
+
+      try {
+        final service = ReceiptPdfService();
+        final order = buildOrder(cashier: 'Kasir B');
+        final tenant = {
+          'name': 'Nusa Laundry',
+          'address': 'Jl. Merdeka No. 10',
+          'city': 'Jakarta',
+          'phone': '08123456789',
+          'logo_url': 'http://${server.address.host}:${server.port}/logo.png',
+        };
+
+        final bytes = await service.build(order: order, tenant: tenant);
+
+        expect(bytes, isNotEmpty);
+        expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('build falls back to logo_path when logo_url is absent or empty', () async {
+      final pngBytes = Uint8List.fromList(const [
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+        0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
+        0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+        0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+        0x42, 0x60, 0x82,
+      ]);
+
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((HttpRequest request) {
+        request.response.headers.contentType = ContentType('image', 'png');
+        request.response.add(pngBytes);
+        request.response.close();
+      });
+
+      try {
+        final service = ReceiptPdfService();
+        final order = buildOrder(cashier: 'Kasir C');
+        final tenant = {
+          'name': 'Nusa Laundry',
+          'address': 'Jl. Merdeka No. 10',
+          'city': 'Jakarta',
+          'phone': '08123456789',
+          'logo_url': '',
+          'logo_path': 'http://${server.address.host}:${server.port}/fallback_logo.png',
+        };
+
+        final bytes = await service.build(order: order, tenant: tenant);
+
+        expect(bytes, isNotEmpty);
+        expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+      } finally {
+        await server.close(force: true);
+      }
     });
   });
 }
