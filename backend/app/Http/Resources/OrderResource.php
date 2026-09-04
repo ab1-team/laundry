@@ -16,6 +16,7 @@ class OrderResource extends JsonResource
             'customer'              => $this->whenLoaded('customer', fn () => new CustomerResource($this->customer)),
             'created_by'            => $this->created_by,
             'creator_name'          => $this->whenLoaded('creator', fn () => $this->creator->name),
+            'cashier'               => $this->createdBy?->name,
             'ticket_number'         => $this->ticket_number,
             'notes'                 => $this->notes,
             'status'                => $this->status,
