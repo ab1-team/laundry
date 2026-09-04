@@ -188,8 +188,6 @@ class ReceiptPdfService {
         _row('Tanggal', _dateTime.format(order.createdAt)),
         if (order.customerName?.isNotEmpty == true)
           _row('Pelanggan', order.customerName!),
-        if (order.customerPhone?.isNotEmpty == true)
-          _row('HP', order.customerPhone!),
         if (order.cashier?.isNotEmpty == true)
           _row('Kasir', order.cashier!),
         pw.SizedBox(height: 4),

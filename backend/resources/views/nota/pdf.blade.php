@@ -75,13 +75,6 @@
       <td class="meta-colon">:</td>
       <td class="meta-value">{{ $customer->name }}</td>
     </tr>
-    @if(!empty($customer->phone))
-    <tr>
-      <td class="meta-label">HP</td>
-      <td class="meta-colon">:</td>
-      <td class="meta-value">{{ $customer->phone }}</td>
-    </tr>
-    @endif
     @php $kasirName = $order->createdBy?->name ?? $order->creator?->name ?? null; @endphp
     @if(!empty($kasirName))
     <tr>
