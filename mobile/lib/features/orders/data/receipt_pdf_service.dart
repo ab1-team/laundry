@@ -153,13 +153,6 @@ class ReceiptPdfService {
         ? pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Expanded(
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                  children: textLines,
-                ),
-              ),
-              pw.SizedBox(width: 6),
               pw.ClipRRect(
                 horizontalRadius: 8,
                 verticalRadius: 8,
@@ -168,6 +161,13 @@ class ReceiptPdfService {
                   width: 60,
                   height: 60,
                   fit: pw.BoxFit.cover,
+                ),
+              ),
+              pw.SizedBox(width: 6),
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                  children: textLines,
                 ),
               ),
             ],
