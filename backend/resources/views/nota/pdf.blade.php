@@ -37,15 +37,15 @@
   @if(!empty($tenant->logo_path) && file_exists(public_path('storage/'.$tenant->logo_path)))
   <table style="width:100%;border-collapse:collapse;margin:0 0 2px;">
     <tr>
+      <td style="width:48pt;vertical-align:middle;padding:0 4px 0 0;">
+        <img src="{{ public_path('storage/'.$tenant->logo_path) }}" style="width:48pt;height:auto;" alt="Logo">
+      </td>
       <td style="vertical-align:middle;text-align:center;padding:0;">
         <div class="tenant-name">{{ $tenant->name ?: 'LAUNDRY' }}</div>
         <div class="kop-line">Alamat : {{ $tenant->address }}@if(!empty($tenant->city)), {{ $tenant->city }}@endif</div>
         @if(!empty($tenant->phone))
         <div class="kop-line">Telp : {{ $tenant->phone }}</div>
         @endif
-      </td>
-      <td style="width:48pt;text-align:right;vertical-align:middle;padding:0 0 0 4px;">
-        <img src="{{ public_path('storage/'.$tenant->logo_path) }}" style="width:48pt;height:auto;" alt="Logo">
       </td>
     </tr>
   </table>
