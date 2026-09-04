@@ -107,6 +107,7 @@ class OrderModel {
     this.cancelReason,
     this.totalPaid = 0,
     this.remaining = 0,
+    this.cashier,
   });
 
   final int id;
@@ -129,6 +130,7 @@ class OrderModel {
   final String? cancelReason;
   final double totalPaid;
   final double remaining;
+  final String? cashier;
 
   factory OrderModel.fromJson(Map<String, dynamic> j) {
     final items = (j['items'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -161,6 +163,7 @@ class OrderModel {
       cancelReason: j['cancel_reason'] as String?,
       totalPaid: asDouble(j['total_paid']),
       remaining: asDouble(j['remaining']),
+      cashier: j['cashier'] as String?,
     );
   }
 }

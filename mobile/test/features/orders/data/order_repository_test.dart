@@ -1,6 +1,7 @@
 import '../../../helpers/secure_storage_test_channel.dart';
 import 'package:laundry/core/network/api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:laundry/features/orders/data/order_model.dart';
 import 'package:laundry/features/orders/data/order_repository.dart';
 
 import '../../../helpers/test_dio_adapter.dart';
@@ -58,6 +59,26 @@ void main() {
     expect(order.remaining, 2000);
     expect(order.items.single.subtotal, 14000);
     expect(order.statusLogs.single.changedByName, 'Operator');
+    expect(order.cashier, isNull);
+  });
+
+  test('show parses cashier when present', () async {
+    final withCashier = Map<String, dynamic>.from(orderJson)..['cashier'] = 'Kasir A';
+    apiClient.dio.httpClientAdapter = TestDioAdapter((options) async {
+      return jsonResponse({'data': withCashier});
+    });
+    final order = await repository.show(12);
+    expect(order.cashier, 'Kasir A');
+  });
+
+  test('OrderModel.fromJson parses cashier null and present directly', () {
+    final base = Map<String, dynamic>.from(orderJson);
+    final withoutCashier = Map<String, dynamic>.from(base);
+    final withCashier = Map<String, dynamic>.from(base)..['cashier'] = 'Operator 1';
+    final parsedNull = OrderModel.fromJson(withoutCashier);
+    final parsedPresent = OrderModel.fromJson(withCashier);
+    expect(parsedNull.cashier, isNull);
+    expect(parsedPresent.cashier, 'Operator 1');
   });
 
   test('create sends item records', () async {
