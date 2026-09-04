@@ -27,7 +27,7 @@ class OrderController extends Controller
             // this, `items` is omitted from the JSON (whenLoaded) and
             // the card falls back to a 3-line layout that drops the
             // qty/service info from the design.
-            ->with(['customer:id,name,phone', 'creator:id,name', 'items.service.category']);
+            ->with(['customer:id,name,phone', 'creator:id,name', 'createdBy:id,name', 'items.service.category']);
 
         // Filter by status
         if ($status = $request->query('status')) {
@@ -120,7 +120,7 @@ class OrderController extends Controller
      */
     public function show(Order $order)
     {
-        $order->load(['customer:id,name,phone', 'creator:id,name', 'items.service.category', 'statusLogs.changedByUser:id,name']);
+        $order->load(['customer:id,name,phone', 'creator:id,name', 'createdBy:id,name', 'items.service.category', 'statusLogs.changedByUser:id,name']);
 
         return ApiResponse::success(new OrderResource($order));
     }
@@ -142,7 +142,7 @@ class OrderController extends Controller
             return ApiResponse::error($e->getMessage(), 422);
         }
 
-        $updated->load(['customer:id,name,phone', 'creator:id,name', 'items.service.category', 'statusLogs.changedByUser:id,name']);
+        $updated->load(['customer:id,name,phone', 'creator:id,name', 'createdBy:id,name', 'items.service.category', 'statusLogs.changedByUser:id,name']);
 
         return ApiResponse::success(
             new OrderResource($updated),
